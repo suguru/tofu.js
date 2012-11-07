@@ -100,6 +100,7 @@
 
 	// Shortcut
 	var fromCharCode = String.fromCharCode;
+	var isArray = Array.isArray;
 
 	var now = null;
 	if ('now' in Date) {
@@ -520,9 +521,6 @@
 		return {
 			init: function(option) {
 				var self = this;
-
-				EventEmitter.prototype.init.apply(self,arguments);
-
 				var width = option.width || 100;
 				var height = option.height || 100;
 
@@ -550,7 +548,6 @@
 				setTimeout(function() {
 					self.frame(now());
 				}, 0);
-				return self;
 			},
 			show: function(selector) {
 				var self = this;
@@ -616,7 +613,7 @@
 				if (wait < 0) {
 					self.cpu = 100;
 				} else {
-					self.cpu = ((self.frameWait - wait) / self.frameWait) * 100;
+					self.cpu = Math.floor(((self.frameWait - wait) / self.frameWait) * 100);
 				}
 				self.timerId = setTimeout(function() {
 					// assign next frame handler
@@ -637,7 +634,6 @@
 			init: function(options) {
 				var self = this;
 				self.id = ++globalId;
-				EventEmitter.prototype.init.apply(self,arguments);
 				self.x = self.y = 0;
 				self.scaleX = self.scaleY = 1;
 				self.angle = 0;
@@ -657,7 +653,6 @@
 					update: false,
 					draw: false
 				};
-				return self;
 			},
 			// update matrix and redraw canvas if needed
 			update: function(draw) {
@@ -879,19 +874,24 @@
 				return self;
 			},
 			// add object to sprite
-			add: function(object) {
+			add: function() {
 				var self = this;
-				if (object.parent === null) {
+				var args = fixArgs(arguments);
+				for (var i = 0; i < args.length; i++) {
+					var object = args[i];
+					if (object.parent === null) {
+						object.parent = self;
+					} else {
+						object.parent.remove(object);
+					}
+					if (self.list === null) {
+						self.list = createLinkedList();
+					}
+					self.list.push(object);
 					object.parent = self;
-				} else {
-					object.parent.remove(object);
+					object.update();
 				}
-				if (self.list === null) {
-					self.list = createLinkedList();
-				}
-				self.list.push(object);
-				object.parent = self;
-				object.update();
+				return self;
 			},
 			// remove object from sprite
 			remove: function(object) {
@@ -900,6 +900,7 @@
 					object.parent = null;
 					self.list.remove(object);
 				}
+				return self;
 			}
 		};
 	});
@@ -908,17 +909,12 @@
 		return {
 			init: function(options) {
 				var self = this;
-				DisplayObject.prototype.init.apply(self, arguments);
-				var source = options.source || createCanvas();
-				var actual = createCanvas();
 				self.source = null;
 				self.canvas = null;
 				self.context = null;
-				// consider devicePixelRatio
-				return self;
 			},
 			initSource: function(source) {
-				var args = Array.prototype.slice.apply(arguments);
+				var args = fixArgs(arguments);
 				var self = this;
 				if (args.length === 2) {
 					// create canvas
@@ -986,6 +982,7 @@
 					return;
 				}
 				var canvas = self.canvas;
+				var pattern = self.pattern;
 				var region = self.region;
 				if (regions) {
 					var length = regions.length;
@@ -1012,6 +1009,38 @@
 				}
 			},
 		};
+	});
+
+	/**
+	 * Sprite which has graphic layer
+	 */
+	var Graphics = extend(Sprite, function Graphics() {}, function() {
+		return {
+			init: function(options) {
+				var self = this;
+				var canvas = createCanvas(
+					floor(options.width*pixelRatio),
+					floor(options.height*pixelRatio)
+				);
+				self.source = canvas;
+				var context = canvas.getContext('2d');
+				context.scale(pixelRatio, pixelRatio);
+				self.graphics = context;
+			},
+			fillImage: function(image, repeat, x, y, width, height) {
+				var self = this;
+				var graphics = self.graphics;
+				graphics.save();
+				graphics.scale(1/pixelRatio,1/pixelRatio);
+				graphics.fillStyle = graphics.createPattern(image, repeat);
+				graphics.fillRect(
+					x*pixelRatio,
+					y*pixelRatio,
+					width*pixelRatio,
+					height*pixelRatio);
+				graphics.restore();
+			}
+		}
 	});
 
 	/**
@@ -1052,7 +1081,6 @@
 		return {
 			init: function(options) {
 				var self = this;
-				EventEmitter.prototype.init.apply(self, arguments);
 				var img = createElement('img');
 				binder(img)
 				.on('load', function() {
@@ -1104,16 +1132,20 @@
 					self.canvas = canvas;
 					self.prepare();
 					self.emit('load');
-					self.image = null;
 				})
 				.on('error', function(e) {
 					self.emit('error',e);
 				});
 				img.src = options.url;
 				self.image = img;
-				return self;
 			},
 			prepare: function() {
+			},
+			release: function() {
+				var self = this;
+				var image = self.image;
+				releaseImage(image);
+				delete self.image;
 			}
 		};
 	});
@@ -1134,13 +1166,14 @@
 		return {
 			init: function(options) {
 				var self = this;
-				EmbeddedImage.prototype.init.apply(self,arguments);
 				self.sprites = {};
-				return self;
 			},
 			prepare: function() {
 				var self = this;
 				recursive('', self.data, self.sprites);
+			},
+			release: function() {
+				EmbeddedImage.prototype.release.apply(this);
 			},
 			create: function(name) {
 				var self = this;
@@ -1160,7 +1193,6 @@
 		return {
 			init: function(options) {
 				var self = this;
-				Sprite.prototype.init.apply(self, arguments);
 				var data = options.data;
 				self.source = {
 					image: options.sheet.image,
@@ -1174,7 +1206,6 @@
 				self.x = round(data.x / pixelRatio);
 				self.y = round(data.y / pixelRatio);
 				self.update(true);
-				return self;
 			}
 		};
 	});
@@ -1194,6 +1225,16 @@
 				thisproto[name] = superproto[name];
 			}
 		}
+		// overwrap init function
+		var init = thisproto.init;
+		if (init) {
+			thisproto.init = function() {
+				var self = this;
+				parent.prototype.init.apply(self, arguments);
+				init.apply(self, arguments);
+				return self;
+			};
+		}
 		base.prototype = thisproto;
 		return base;
 	}
@@ -1206,6 +1247,11 @@
 	// create a sprite
 	function createSprite(options) {
 		return new Sprite().init(options || {});
+	}
+
+	// create a graphics
+	function createGraphics(options) {
+		return new Graphics().init(options || {});
 	}
 
 	// create a bitmap
@@ -1228,6 +1274,23 @@
 		return new SpriteSheet().init(options || {});
 	}
 
+	// extend Sprite
+	function extendSprite(ext) {
+		return extend(Sprite, function() {}, ext);
+	}
+
+	function extendBitmap(ext) {
+		return extend(Bitmap, function() {}, ext);
+	}
+
+	function extendGraphics(ext) {
+		return extend(Graphics, function() {}, ext);
+	}
+
+	function create(cls, options) {
+		return new cls().init(options);
+	}
+
 	// release image immediately with setting empty image to the src
 	function releaseImage(img) {
 		img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
@@ -1236,6 +1299,7 @@
 	w.tofu = {
 		createStage: createStage,
 		createSprite: createSprite,
+		createGraphics: createGraphics,
 		createBitmap: createBitmap,
 		createEmbeddedImage: createEmbeddedImage,
 		createSpriteSheet: createSpriteSheet
