@@ -516,12 +516,12 @@
 	 * stage provide root container
 	 * which cannot render anything but can put DisplayObject
 	 */
-	var Stage = (function() {
-		function Stage() {
-		}
-		Stage.prototype = {
+	var Stage = extend(EventEmitter, function Stage() {}, function() {
+		return {
 			init: function(option) {
 				var self = this;
+
+				EventEmitter.prototype.init.apply(self,arguments);
 
 				var width = option.width || 100;
 				var height = option.height || 100;
@@ -549,7 +549,7 @@
 
 				setTimeout(function() {
 					self.frame(now());
-				}, self.frameWait);
+				}, 0);
 				return self;
 			},
 			show: function(selector) {
@@ -575,14 +575,12 @@
 				object.stage = null;
 			},
 			// frame handler
-			frame: function(previous) {
-				var start = Date.now();
+			frame: function(next) {
 				var self = this;
-				var next = previous + self.frameWait;
-				var wait = next - now();
+				var start = now();
 				var context = self.context;
 				// skip rendering if wait time is negative
-				if (wait > 0) {
+				if (start < next) {
 					var list = self.list;
 					var node = list.head;
 					var updates = [];
@@ -613,15 +611,22 @@
 						node = node[2];
 					}
 				}
-				self.cpu = (Date.now() - start) * self.frameRate / 10;
-				setTimeout(function() {
+				var end = now();
+				var wait = next - end;
+				if (wait < 0) {
+					self.cpu = 100;
+				} else {
+					self.cpu = ((self.frameWait - wait) / self.frameWait) * 100;
+				}
+				self.timerId = setTimeout(function() {
 					// assign next frame handler
-					self.frame(now());
+					self.emit('enterframe');
+					self.frame(now() + self.frameWait);
+					self.emit('exitframe');
 				}, wait > 0 ? wait : 0); 
 			}
 		};
-		return Stage;
-	})();
+	});
 
 	/**
 	 * base object
@@ -857,18 +862,21 @@
 			rotate: function(angle) {
 				var self = this;
 				self.angle += angle;
+				return self;
 			},
 			// translate
 			translate: function(tx, ty) {
 				var self = this;
 				self.x += tx;
 				self.y += ty;
+				return self;
 			},
 			// scale
 			scale: function(sx, sy) {
 				var self = this;
 				self.scaleX = sx;
 				self.scaleY = sy === undefined ? sx : sy;
+				return self;
 			},
 			// add object to sprite
 			add: function(object) {

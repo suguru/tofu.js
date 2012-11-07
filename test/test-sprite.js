@@ -17,7 +17,7 @@ $.ready(function() {
 	var fps = 0;
 
 	var avatar = tofu.createSprite();
-	avatar.x = 100;
+	avatar.x = 340;
 	avatar.y = 200;
 	avatar.update();
 	stage.add(avatar);
@@ -56,17 +56,29 @@ $.ready(function() {
 	$('#ratio').text('RATIO ' + (pixelRatio || 1));
 	$('#cpu').text('CPU 0%');
 
-	setInterval(function() {
+	var i = 0;
+	stage.on('enterframe', function() {
 		if (avatar.ready) {
-			avatar.rotate(.05);
-			avatar.update();
-			avatar.arm.right.rotate(.1);
-			avatar.arm.left.rotate(-.1);
+			var legr = avatar.leg.right;
+			var legl = avatar.leg.left;
+			var t = Math.sin(i += .5 % (Math.PI / 4));
+			legr.angle = t;
+			legr.update();
+			legl.angle = -t;
+			legl.update();
+			avatar.arm.right.angle = -t;
 			avatar.arm.right.update();
+			avatar.arm.left.angle = t;
 			avatar.arm.left.update();
+			avatar.x -= 2;
+			avatar.y = t*4 + 200;
+			avatar.update();
+			if (avatar.x < -40) {
+				avatar.x = 340;
+			}
 		}
 		fps++;
-	}, Math.floor(1000/frameRate));
+	});
 	setInterval(function() {
 		$('#fps').text('FPS '+fps);
 		$('#cpu').text('CPU '+stage.cpu + '%');
