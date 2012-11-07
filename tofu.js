@@ -10,7 +10,7 @@
 	var pixelRatio = window.devicePixelRatio || 1;
 	var reverseRatio = 1 / pixelRatio;
 
-	var STROKE_DRAW_REGION = 1;
+	var STROKE_DRAW_REGION = 0;
 
 	// create the html element
 	function createElement(elementType) {
@@ -20,8 +20,10 @@
 	// create the canvas element
 	function createCanvas(width,height) {
 		var canvas = createElement('canvas');
-		canvas.width = width;
-		canvas.height= height;
+		if (width && height) {
+			canvas.width = width;
+			canvas.height= height;
+		}
 		return canvas;
 	}
 
@@ -64,6 +66,15 @@
 		return Array.prototype.slice.apply(args);
 	}
 
+	function binder(source) {
+		return {
+			on: function(name, listener) {
+				source.addEventListener(name, listener);
+				return this;
+			}
+		};
+	}
+
 	var Stopwatch = {
 		time: 0,
 		start: function() {
@@ -79,12 +90,16 @@
 	var abs = Math.abs;
 	var floor = Math.floor;
 	var ceil = Math.ceil;
+	var round = Math.round;
 	var max = Math.max;
 	var min = Math.min;
 	var mathsin = Math.sin;
 	var mathcos = Math.cos;
 	var PI = Math.PI;
 	var PI_DOUBLE = PI*2;
+
+	// Shortcut
+	var fromCharCode = String.fromCharCode;
 
 	var now = null;
 	if ('now' in Date) {
@@ -862,6 +877,7 @@
 				}
 				self.list.push(object);
 				object.parent = self;
+				object.update();
 			},
 			// remove object from sprite
 			remove: function(object) {
@@ -887,7 +903,7 @@
 				// consider devicePixelRatio
 				return self;
 			},
-			source: function(source) {
+			initSource: function(source) {
 				var args = Array.prototype.slice.apply(arguments);
 				var self = this;
 				if (args.length === 2) {
@@ -926,13 +942,26 @@
 				} else {
 					canvas.width = region[2];
 					canvas.height = region[3];
-				}	
+				}
 				// apply matrix
 				context.save();
 				context.translate(-region[0], -region[1]);
 				context.transform.apply(context, self.matrix);
 				// move to region top/right
-				context.drawImage(source,0,0);
+				if (source.image) {
+					context.drawImage(source.image,
+									  source.x,
+									  source.y,
+									  source.width,
+									  source.height,
+									  0,
+									  0,
+									  source.width,
+									  source.height);
+				} else {
+					// full image
+					context.drawImage(source,0,0);
+				}
 				context.restore();
 			},
 			render: function(context, regions) {
@@ -983,7 +1012,7 @@
 				self.url = options.url;
 				// image must be scaled 
 				var image = new Image();
-				image.addEventListener('load', function() {
+				binder(image).on('load', function() {
 					self.source = image;
 					self.update(true);
 				});
@@ -992,18 +1021,149 @@
 			}
 		};
 	});
-
+	
 	/**
-	 * Sprite sheet for clipping images in large image.
+	 * Data embedded image
 	 */
-	var SpriteSheet = (function() {
-		function SpriteSheet() {
-		};
-		SpriteSheet.prototype = {
+	var EmbeddedImage = extend(EventEmitter, function EmbeddedImage() {}, function() {
+		
+		// constants
+		var SIGNATURE = 'EMB';
+		var RGBA_SIZE = 4;
+		var RGB_SIZE = 3;
+		var BITS_PER_BYTE = 8;
+		var BYTES_STR_LENGTH = 2;
+		var BYTES_SIGNATURE_LENGTH = 3;
+
+		return {
 			init: function(options) {
+				var self = this;
+				EventEmitter.prototype.init.apply(self, arguments);
+				var img = createElement('img');
+				binder(img)
+				.on('load', function() {
+
+					var width = img.width;
+					var height = img.height;
+
+					var canvas = createCanvas(width, height);
+					var context = canvas.getContext('2d');
+					context.drawImage(img,0,0);
+
+					var data = context.getImageData(0,0,width,height).data;
+
+					// data length including image part and extra data part
+					var length = height * width * RGBA_SIZE;
+					var currentPosition = length - 4;
+					var sign = fromCharCode(
+						data[currentPosition],
+						data[currentPosition + 1],
+						data[currentPosition + 2]
+					);
+					if (sign !== SIGNATURE) {
+						throw new Error('no embedded data');
+					}
+					currentPosition = currentPosition - 3;
+					var strLength = data[currentPosition] << BITS_PER_BYTE | (data[currentPosition + 1]);
+					var numExtraLines = Math.ceil(
+						(strLength + BYTES_STR_LENGTH + BYTES_SIGNATURE_LENGTH) / (width * RGB_SIZE));
+					var imageHeight = height - numExtraLines;
+					// data length of extra data part excluding alpha data (1 byte for each pixel 4 bytes)
+					var extraLength = width * RGB_SIZE * numExtraLines;
+					// data length of alignment excluding alpha data (1 byte for each pixel 4 bytes)
+					var alignLength = extraLength - (strLength + BYTES_STR_LENGTH + BYTES_SIGNATURE_LENGTH);
+					var extraStartPosition = imageHeight * width * RGBA_SIZE;
+					var strStartPosition = extraStartPosition + alignLength +
+							// add alpha data length
+							floor(alignLength / RGB_SIZE);
+					var text = '';
+					var i;
+
+					currentPosition = strStartPosition;
+					for (i = 0; i < strLength; i++) {
+						text += fromCharCode(data[currentPosition++]);
+						if ((currentPosition - extraStartPosition + 1) % RGBA_SIZE === 0) {
+							currentPosition++;
+						}
+					}
+					self.data = JSON.parse(text);
+					self.canvas = canvas;
+					self.prepare();
+					self.emit('load');
+					self.image = null;
+				})
+				.on('error', function(e) {
+					self.emit('error',e);
+				});
+				img.src = options.url;
+				self.image = img;
+				return self;
+			},
+			prepare: function() {
 			}
 		};
-	})();
+	});
+
+	var SpriteSheet = extend(EmbeddedImage, function SpriteSheet() {}, function() {
+		function recursive(name, data, refs) {
+			if (name && data.dest) {
+				refs[name] = data;
+				return;
+			}
+			var children = data.children || data;
+			for (var cname in children) {
+				var child = children[cname];
+				cname = name ? name + '.' + cname : cname;
+				recursive(cname, child, refs);
+			}
+		}
+		return {
+			init: function(options) {
+				var self = this;
+				EmbeddedImage.prototype.init.apply(self,arguments);
+				self.sprites = {};
+				return self;
+			},
+			prepare: function() {
+				var self = this;
+				recursive('', self.data, self.sprites);
+			},
+			create: function(name) {
+				var self = this;
+				var ref = self.sprites[name];
+				if (!ref) {
+					throw new Error(name + ' does not exist');
+				}
+				return new SpriteBitmap().init({
+					sheet: self,
+					data: ref
+				});
+			}
+		};
+	});
+
+	var SpriteBitmap = extend(Sprite, function BitmapSprite() {}, function() {
+		return {
+			init: function(options) {
+				var self = this;
+				Sprite.prototype.init.apply(self, arguments);
+				var data = options.data;
+				self.source = {
+					image: options.sheet.image,
+					x: data.dest.x,
+					y: data.dest.y,
+					width: data.width,
+					height: data.height
+				};
+				self.baseX = round(data.base.x / pixelRatio);
+				self.baseY = round(data.base.y / pixelRatio);
+				self.x = round(data.x / pixelRatio);
+				self.y = round(data.y / pixelRatio);
+				self.update(true);
+				return self;
+			}
+		};
+	});
 
 	/**
 	 * extend base class
@@ -1044,10 +1204,27 @@
 		return new LinkedList();
 	}
 
+	// create a embedded image
+	function createEmbeddedImage(options) {
+		return new EmbeddedImage().init(options || {});
+	}
+
+	// create a sprite sheet
+	function createSpriteSheet(options) {
+		return new SpriteSheet().init(options || {});
+	}
+
+	// release image immediately with setting empty image to the src
+	function releaseImage(img) {
+		img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
+	}
+
 	w.tofu = {
 		createStage: createStage,
 		createSprite: createSprite,
-		createBitmap: createBitmap
+		createBitmap: createBitmap,
+		createEmbeddedImage: createEmbeddedImage,
+		createSpriteSheet: createSpriteSheet
 	};
 
 })(window);
