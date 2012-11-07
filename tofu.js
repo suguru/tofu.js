@@ -592,7 +592,7 @@
 					var curr;
 					while (node) {
 						curr = node[1];
-						curr._redraw(redraws,updates);
+						curr._redraw(redraws);
 						node = node[2];
 					}
 					// merge regions
@@ -675,9 +675,10 @@
 				}
 			},
 			// collect redraw regions
-			_redraw: function(redraws,updates) {
+			_redraw: function(redraws) {
 				var self = this;
 				var flags = self.flags;
+				var list = self.list;
 				if (flags.update) {
 					self.calculate();
 					var prev = self.previous;
@@ -718,23 +719,28 @@
 						self.draw();
 						flags.draw = false;
 					}
-				}
-				if (flags.child) {
-					var list = self.list;
-					// recursive read for children
+					// redraw children
 					if (list) {
 						var node = list.head;
 						while (node) {
 							var curr = node[1];
-							var cflags = curr.flags;
-							// check before call
-							if (cflags.update || cflags.child) {
-								// push all elements
-								curr._redraw(redraws,updates);
-							}
-							// to next
+							curr.flags.update = true;
+							curr._redraw(redraws);
 							node = node[2];
 						}
+					}
+				} else if (flags.child && list) {
+					var node = list.head;
+					while (node) {
+						var curr = node[1];
+						var cflags = curr.flags;
+						// check before call
+						if (cflags.update || cflags.child) {
+							// push all elements
+							curr._redraw(redraws);
+						}
+						// to next
+						node = node[2];
 					}
 				}
 			},

@@ -58,6 +58,8 @@ $.ready(function() {
 
 	setInterval(function() {
 		if (avatar.ready) {
+			avatar.rotate(.05);
+			avatar.update();
 			avatar.arm.right.rotate(.1);
 			avatar.arm.left.rotate(-.1);
 			avatar.arm.right.update();
