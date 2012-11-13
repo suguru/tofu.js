@@ -1138,7 +1138,6 @@
 				});
 				img.src = options.url;
 				self.image = img;
-				return self;
 			},
 			prepare: function() {
 			},
@@ -1168,7 +1167,6 @@
 			init: function(options) {
 				var self = this;
 				self.sprites = {};
-				return self;
 			},
 			prepare: function() {
 				var self = this;
@@ -1208,7 +1206,6 @@
 				self.x = round(data.x / pixelRatio);
 				self.y = round(data.y / pixelRatio);
 				self.update(true);
-				return self;
 			}
 		};
 	});
