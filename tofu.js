@@ -811,7 +811,7 @@
 			calculate: function() {
 				var self = this;
 				var parent = self.parent;
-				var matrix = self.matrix;
+				var matrix = self.matrix = [1,0,0,1,0,0];
 
 				// normalize angle
 				var angle = self.angle;
@@ -825,7 +825,6 @@
 
 				// calculate matrix
 				// prepare matrix
-				var matrix = self.matrix = [1,0,0,1,0,0];
 				// translate for base X, Y
 				if (self.baseX !== 0 || self.baseY !== 0) {
 					Matrix.translate(matrix, ratio(-self.baseX), ratio(-self.baseY));
@@ -837,10 +836,13 @@
 				// scaling
 				if (self.scaleX !== 1 || self.scaleY !== 1) {
 					Matrix.scale(matrix, self.scaleX, self.scaleY);
-				}
+			}
 				// translating
-				if (self.x !== 0 || self.y !== 0) {
+				if (!self.specifiedMatrix && (self.x !== 0 || self.y !== 0)) {
 					Matrix.translate(matrix, ratio(self.x), ratio(self.y));
+				}
+				if (self.specifiedMatrix) {
+					Matrix.concat(matrix, matrix, self.specifiedMatrix);
 				}
 				// concatnate
 				if (parent) {
