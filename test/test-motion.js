@@ -97,10 +97,10 @@ $.ready(function() {
 			superagent
 					.get(url)
 					.set('Accept', 'application/json')
-          .end(function(res) {
+					.end(function(res) {
 						var key, path, i, l, current;
-            if (res.ok) {
-              self.motion = res.body;
+						if (res.ok) {
+							self.motion = res.body;
 							// find animation data by the key for each part sprite
 							for (key in self.spritesheet.sprites) {
 								path = key.split('.');
@@ -118,9 +118,9 @@ $.ready(function() {
 								}
 							}
 							callback();
-            } else {
-              err('failed to load motion data');
-            }
+						} else {
+							err('failed to load motion data');
+						}
 					});
 		},
 		nextFrame: function(frame) {
