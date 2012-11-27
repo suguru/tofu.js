@@ -524,13 +524,6 @@
 				var width = option.width || 100;
 				var height = option.height || 100;
 
-				if (width % 2 !== 0 ||
-					width %3 !== 0 ||
-					height %2 !== 0 ||
-					height %3 !== 0) {
-					console.log('WARN width and height should be multiplier of 2 and 3 because of pixel ratio', width, height);
-				}
-
 				var canvas = createCanvas(ceil(width*pixelRatio), ceil(height*pixelRatio));
 				// set canvas region
 				canvas.style.width = width + 'px';
@@ -558,20 +551,28 @@
 				}
 			},
 			// add object to the stage
-			add: function(object) {
+			add: function() {
 				var self = this;
-				if (object.stage) {
-					object.stage.remove(object);
+				var args = fixArgs(arguments);
+				for (var i = 0; i < args.length; i++) {
+					var object = args[i];
+					if (object._stage) {
+						object._stage.remove(object);
+					}
+					self.list.push(object);
+					object._stage = self;
 				}
-				self.list.push(object);
-				object.stage = self;
 			},
 			// remove object from the stage
-			remove: function(object) {
+			remove: function() {
 				var self = this;
-				self.list.remove(object);
-				self.removed.push(object);
-				object.stage = null;
+				var args = fixArgs(arguments);
+				for (var i = 0; i < args.length; i++) {
+					var object = args[i];
+					self.list.remove(object);
+					self.redraws.push(object.region);
+					object._stage = null;
+				}
 			},
 			// frame handler
 			frame: function(next) {
@@ -839,7 +840,7 @@
 				// scaling
 				if (self.scaleX !== 1 || self.scaleY !== 1) {
 					Matrix.scale(matrix, self.scaleX, self.scaleY);
-			}
+				}
 				// translating
 				if (!self.specifiedMatrix && (self.x !== 0 || self.y !== 0)) {
 					Matrix.translate(matrix, ratio(self.x), ratio(self.y));
@@ -878,6 +879,14 @@
 				self.scaleY = sy === undefined ? sx : sy;
 				return self;
 			},
+			// get stage of this object
+			stage: function() {
+				var self = this;
+				while (self.parent) {
+					self = self.parent;
+				}
+				return self._stage;
+			},
 			// add object to sprite
 			add: function() {
 				var self = this;
@@ -901,7 +910,7 @@
 			// remove object from sprite
 			remove: function() {
 				var self = this;
-				var stage = self.stage;
+				var stage = self.stage();
 				var args = fixArgs(arguments);
 				// remove self if arguments not found
 				if (args.length === 0) {
