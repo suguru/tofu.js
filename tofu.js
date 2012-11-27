@@ -185,13 +185,13 @@
 					var prev = self.tail;
 					var node = [prev,o,null];
 					prev[2] = node;
-					o._node = node;
 					self.tail = node;
 				} else {
 					var node = [null,o,null];
 					self.head = node;
 					self.tail = node;
 				}
+				o._node = node;
 			},
 			pop: function() {
 			},
@@ -202,13 +202,13 @@
 					var next = self.head;
 					var node = [null,o,next];
 					next[0] = o;
-					o._node = node;
 					self.head = node;
 				} else {
 					var node = [null,o,null];
 					self.head = node;
 					self.tail = node;
 				}
+				o._node = node;
 			},
 			shift: function() {
 			},
@@ -893,9 +893,7 @@
 				var args = fixArgs(arguments);
 				for (var i = 0; i < args.length; i++) {
 					var object = args[i];
-					if (object.parent === null) {
-						object.parent = self;
-					} else {
+					if (object.parent !== null) {
 						object.parent.remove(object);
 					}
 					if (self.list === null) {
