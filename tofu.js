@@ -183,7 +183,7 @@
 				var self = this;
 				if (self.tail) {
 					var prev = self.tail;
-					var node = [prev[0],o,null];
+					var node = [prev,o,null];
 					prev[2] = node;
 					o._node = node;
 					self.tail = node;
@@ -544,6 +544,7 @@
 				self.frameRate = frameRate;
 				self.frameWait = ceil(1000 / self.frameRate);
 				self.list = createLinkedList();
+				self.redraws = [];
 
 				setTimeout(function() {
 					self.frame(now());
@@ -569,6 +570,7 @@
 			remove: function(object) {
 				var self = this;
 				self.list.remove(object);
+				self.removed.push(object);
 				object.stage = null;
 			},
 			// frame handler
@@ -581,7 +583,7 @@
 					var list = self.list;
 					var node = list.head;
 					var updates = [];
-					var redraws = [];
+					var redraws = self.redraws;
 					// collect updated regions
 					node = list.head;
 					var curr;
@@ -607,6 +609,7 @@
 						curr._render(context, redraws);
 						node = node[2];
 					}
+					self.redraws = [];
 				}
 				var end = now();
 				var wait = next - end;
@@ -896,11 +899,25 @@
 				return self;
 			},
 			// remove object from sprite
-			remove: function(object) {
+			remove: function() {
 				var self = this;
-				if (object.parent === self && self.list !== null) {
-					object.parent = null;
-					self.list.remove(object);
+				var stage = self.stage;
+				var args = fixArgs(arguments);
+				// remove self if arguments not found
+				if (args.length === 0) {
+					args = [self];
+				}
+				for (var i = 0; i < args.length; i++) {
+					var object = args[i];
+					var parent = object.parent;
+					if (object.parent) {
+						parent.list.remove(object);
+						// add removed region to redraw list
+						if (stage) {
+							stage.redraws.push(object.region);
+						}
+						object.parent = null;
+					}
 				}
 				return self;
 			}

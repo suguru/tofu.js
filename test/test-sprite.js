@@ -93,7 +93,6 @@ $.ready(function() {
 		stage.add(avatar3.sprite);
 	});
 
-
 	$('#ratio').text('RATIO ' + (pixelRatio || 1));
 	$('#cpu').text('CPU 0%');
 
