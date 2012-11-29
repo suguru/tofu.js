@@ -118,7 +118,8 @@
 			/**
 			 * EventEmitter
 			 */
-			init: function() {
+			init: function(options) {
+				options = options || {};
 				var self = this;
 				self.listeners = {};
 				return self;
@@ -519,10 +520,11 @@
 	 */
 	var Stage = extend(EventEmitter, function Stage() {}, function() {
 		return {
-			init: function(option) {
+			init: function(options) {
+				options = options || {};
 				var self = this;
-				var width = option.width || 100;
-				var height = option.height || 100;
+				var width = self.width = options.width || 100;
+				var height = self.height = options.height || 100;
 
 				var canvas = createCanvas(ceil(width*pixelRatio), ceil(height*pixelRatio));
 				// set canvas region
@@ -530,7 +532,7 @@
 				canvas.style.height = height + 'px';
 
 				var context = getContext(canvas);
-				var frameRate = option.frameRate || 20;
+				var frameRate = options.frameRate || 20;
 
 				self.canvas = canvas;
 				self.context = context;
@@ -636,13 +638,16 @@
 		var globalId = 0;
 		return {
 			init: function(options) {
+				options = options || {};
 				var self = this;
 				self.id = ++globalId;
-				self.x = self.y = 0;
-				self.scaleX = self.scaleY = 1;
-				self.angle = 0;
+				self.x = 'x' in options ? options.x : 0;
+				self.y = 'y' in options ? options.y : 0;
+				self.scaleX = 'scaleX' in options ? options.scaleX : 1;
+				self.scaleY = 'scaleY' in options ? options.scaleY : 1;
 				self.baseX = 'baseX' in options ? options.baseX : 0;
 				self.baseY = 'baseY' in options ? options.baseY : 0;
+				self.angle = 'angle' in options ? options.angle : 0;
 				self.matrix = [1,0,0,1,0,0]; // transformation matrix
 				self.region = [0,0,0,0]; // maximum region of the object
 				self.width = self.height = 0;
@@ -815,7 +820,6 @@
 			calculate: function() {
 				var self = this;
 				var parent = self.parent;
-				var matrix = self.matrix = [1,0,0,1,0,0];
 
 				// normalize angle
 				var angle = self.angle;
@@ -829,6 +833,7 @@
 
 				// calculate matrix
 				// prepare matrix
+				var matrix = self.matrix = [1,0,0,1,0,0];
 				// translate for base X, Y
 				if (self.baseX !== 0 || self.baseY !== 0) {
 					Matrix.translate(matrix, ratio(-self.baseX), ratio(-self.baseY));
@@ -936,6 +941,7 @@
 	var Sprite = extend(DisplayObject, function Sprite() {}, function() {
 		return {
 			init: function(options) {
+				options = options || {};
 				var self = this;
 				self.source = null;
 				self.canvas = null;
@@ -1077,6 +1083,7 @@
 	var Bitmap = extend(Sprite, function Bitmaps() {}, function() {
 		return {
 			init: function(options) {
+				options = options || {};
 				var self = this;
 				Sprite.prototype.init.apply(self, arguments);
 				// image url
@@ -1108,6 +1115,7 @@
 
 		return {
 			init: function(options) {
+				options = options || {};
 				var self = this;
 				var img = createElement('img');
 				binder(img)
@@ -1193,6 +1201,7 @@
 		}
 		return {
 			init: function(options) {
+				options = options || {};
 				var self = this;
 				self.sprites = {};
 			},
@@ -1220,6 +1229,7 @@
 	var SpriteBitmap = extend(Sprite, function BitmapSprite() {}, function() {
 		return {
 			init: function(options) {
+				options = options || {};
 				var self = this;
 				var data = options.data;
 				self.source = {
@@ -1267,24 +1277,29 @@
 		return base;
 	}
 
+	// extend sprite object
+	function extendSprite(getter) {
+		return extend(Sprite, function() {}, getter);
+	};
+
 	// create a stage
 	function createStage(options) {
-		return new Stage().init(options || {});
+		return new Stage().init(options);
 	}
 
 	// create a sprite
 	function createSprite(options) {
-		return new Sprite().init(options || {});
+		return new Sprite().init(options);
 	}
 
 	// create a graphics
 	function createGraphics(options) {
-		return new Graphics().init(options || {});
+		return new Graphics().init(options);
 	}
 
 	// create a bitmap
 	function createBitmap(options) {
-		return new Bitmap().init(options || {});
+		return new Bitmap().init(options);
 	}
 
 	// create a linked list
@@ -1294,12 +1309,12 @@
 
 	// create a embedded image
 	function createEmbeddedImage(options) {
-		return new EmbeddedImage().init(options || {});
+		return new EmbeddedImage().init(options);
 	}
 
 	// create a sprite sheet
 	function createSpriteSheet(options) {
-		return new SpriteSheet().init(options || {});
+		return new SpriteSheet().init(options);
 	}
 
 	// extend Sprite
