@@ -930,6 +930,14 @@
 						if (stage) {
 							stage.redraws.push(object.region);
 						}
+						// remove children
+						// TODO parent has active regions contains all children
+						var child = object.list && object.list.head;
+						while (child) {
+							var node = child[1];
+							node.remove();
+							child = child[2];
+						}
 						object.parent = null;
 					}
 				}
