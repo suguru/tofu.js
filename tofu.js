@@ -1049,17 +1049,71 @@
 	 * Sprite which has graphic layer
 	 */
 	var Graphics = extend(Sprite, function Graphics() {}, function() {
-		return {
+		var proto = {
 			init: function(options) {
+				options = options || {};
+				var width = this.width = options.width || 1;
+				var height = this.height = options.height || 1;
 				var self = this;
 				var canvas = createCanvas(
-					floor(options.width*pixelRatio),
-					floor(options.height*pixelRatio)
+					floor(width*pixelRatio),
+					floor(height*pixelRatio)
 				);
 				self.source = canvas;
 				var context = canvas.getContext('2d');
 				context.scale(pixelRatio, pixelRatio);
 				self.graphics = context;
+
+				// proxy context properties
+				[
+					'strokeStyle','fillStyle','lineWith','lineCap','lineJoin','miterLimit',
+					'shadowColor','shadowOffsetX','shadowOffsetY','shadowBlur',
+					'font','textAlign','textBaseline','globalAlpha','globalCompositeOperation'
+				].forEach(function(name) {
+					self.__defineSetter__(name, function(value) {
+						context[name] = value;
+					});
+					self.__defineGetter__(name, function(value) {
+						return context[name];
+					});
+				});
+
+
+				self.__defineSetter__('fillStyle', function(fillStyle) {
+					context.fillStyle = fillStyle;
+				});
+				self.__defineSetter__('strokeStyle', function(strokeStyle) {
+					context.strokeStyle = strokeStyle;
+				});
+			},
+			resize: function(width,height) {
+				var self = this;
+				this.width = width;
+				this.height = height;
+				width = width * pixelRatio;
+				height = height * pixelRatio;
+				var canvas = self.source;
+				canvas.width = width;
+				canvas.height = height;
+			},
+			fillRoundRect: function(x, y, width, height, elt, ert, erb, elb) {
+				var self = this;
+				elt = elt || 10;
+				ert = ert || elt;
+				erb = erb || elt;
+				elb = elb || elt;
+				var graphics = self.graphics;
+				graphics.beginPath();
+				graphics.moveTo(x + elt,y);
+				graphics.lineTo(x+width - ert,y);
+				graphics.quadraticCurveTo(x+width, y, x+width, y+ert);
+				graphics.lineTo(x+width,y+height-erb);
+				graphics.quadraticCurveTo(x+width, y+height, x+width-erb, y+height);
+				graphics.lineTo(x+elb, y+height);
+				graphics.quadraticCurveTo(x, y+height, x, y+height - elb);
+				graphics.lineTo(x, elt);
+				graphics.quadraticCurveTo(x, y, x+elt, y);
+				graphics.fill();
 			},
 			fillImage: function(image, repeat, x, y, width, height) {
 				var self = this;
@@ -1074,7 +1128,22 @@
 					height*pixelRatio);
 				graphics.restore();
 			}
-		}
+		};
+		// canvas proxy
+		[
+			'beginPath','moveTo','closePath','lineTo','quadraticCurveTo','bezierCurveTo',
+			'fill','arcTo','arc','rect','stroke','clip','isPointInPath',
+			'clearRect','fillRect','strokeRect','addColorStop','createLinearGradient',
+			'createRadialGradient','createPattern','drawImage','fillText','strokeText',
+			'measureText'
+		].forEach(function(name) {
+			proto[name] = function() {
+				var self = this;
+				var graphics = self.graphics;
+				return graphics[name].apply(graphics, arguments);
+			};
+		});
+		return proto;
 	});
 
 	/**
