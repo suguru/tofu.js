@@ -1087,7 +1087,7 @@
 				var self = this;
 				Sprite.prototype.init.apply(self, arguments);
 				// image url
-				self.url = options.url;
+				self.url = imageUrl(options.url);
 				// image must be scaled 
 				var image = new Image();
 				binder(image).on('load', function() {
@@ -1172,7 +1172,7 @@
 				.on('error', function(e) {
 					self.emit('error',e);
 				});
-				img.src = options.url;
+				img.src = imageUrl(options.url);
 				self.image = img;
 			},
 			prepare: function() {
@@ -1339,13 +1339,22 @@
 		img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
 	}
 
+	function imageUrl(url) {
+		url = url.replace('${ratio}',pixelRatio*10);
+		return url;
+	}
+
 	w.tofu = {
 		createStage: createStage,
 		createSprite: createSprite,
 		createGraphics: createGraphics,
 		createBitmap: createBitmap,
 		createEmbeddedImage: createEmbeddedImage,
-		createSpriteSheet: createSpriteSheet
+		createSpriteSheet: createSpriteSheet,
+		extendSprite: extendSprite,
+		extendGraphics: extendGraphics,
+		pixelRatio: pixelRatio,
+		imageUrl: imageUrl
 	};
 
 })(window);
