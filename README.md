@@ -13,4 +13,4 @@ This library tested on
 
 ### Copyright
 
-CyberAgent, Inc. All rights reserved.
+MIT
