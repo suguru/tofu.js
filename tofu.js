@@ -540,6 +540,7 @@
 				self.frameWait = ceil(1000 / self.frameRate);
 				self.list = createLinkedList();
 				self.redraws = [];
+				self.player = options.player || createMotionPlayer();
 
 				setTimeout(function() {
 					self.frame(now());
@@ -581,6 +582,9 @@
 				var self = this;
 				var start = now();
 				var context = self.context;
+				// proceed player frame
+				var player = self.player;
+				player.proceed();
 				// skip rendering if wait time is negative
 				if (start < next) {
 					var list = self.list;
@@ -1328,6 +1332,112 @@
 		};
 	});
 
+	function MotionPlayer() {
+	};
+	MotionPlayer.prototype = {
+		init: function() {
+			var self = this;
+			self.motions = {};
+			self.playings = {};
+			return self;
+		},
+		// register new motion data
+		register: function(name, data) {
+			var self = this;
+			for (var oname in data) {
+				var parts = data[oname];
+				for (var partname in parts) {
+					var partdata = parts[partname];
+					for (var i = 0; i < partdata.length; i++) {
+						var partmatrix = partdata[i];
+						if (partmatrix) {
+							partmatrix[4] = partmatrix[4] * pixelRatio / 2;
+							partmatrix[5] = partmatrix[5] * pixelRatio / 2;
+						}
+					}
+				}
+			}
+			var motions = self.motions;
+			motions[name] = data;
+			return self;
+		},
+		// apply motion to sprite
+		play: function(name, target, opts) {
+			opts = opts || {};
+			var self = this;
+			var repeat = opts.repeat === true;
+			// callback for completion of motion
+			var done = opts.done;
+			var data = self.motions[name];
+			if (!data) {
+				console.error('motion',name,'is not registered');
+				return;
+			}
+			var playings = self.playings;
+			for (var tname in target) {
+				// target object
+				var mtarget = target[tname];
+				// get motion data
+				var mdata = data[tname];
+				var totalFrame = 0;
+				for (var pname in mdata) {
+					totalFrame = mdata[pname].length;
+				}
+				if (mdata) {
+					playings[mtarget.id] = {
+						name: tname,
+						target: mtarget,
+						repeat: repeat,
+						data: mdata,
+						totalFrame: totalFrame,
+						done: done,
+						frame: 0
+					};
+				}
+			}
+			return self;
+		},
+		// proceed all objects which applied
+		proceed: function() {
+			var self = this;
+			var playings = self.playings;
+			for (var oid in playings) {
+				var playing = playings[oid];
+				var frame = playing.frame;
+				var totalFrame = playing.totalFrame;
+				var target = playing.target;
+				var data = playing.data;
+				for (var name in data) {
+					var object = target[name];
+					var array = data[name];
+					if (array) {
+						var matrix = array[frame];
+						if (matrix) {
+							object.specifiedMatrix = matrix;
+							object.update();
+						}
+					}
+				}
+				playing.frame = frame + 1;
+				if (playing.frame >= totalFrame) {
+					if (playing.repeat) {
+						playing.frame = 0;
+					} else {
+						delete playings[oid];
+					}
+				}
+			}
+			return self;
+		},
+		// stop object
+		stop: function(opts) {
+			var self = this;
+			opts = opts || {};
+			delete playings[oid];
+			return self;
+		}
+	};
+
 	/**
 	 * extend base class
 	 */
@@ -1397,6 +1507,11 @@
 		return new SpriteSheet().init(options);
 	}
 
+	// create a motion player
+	function createMotionPlayer(options) {
+		return new MotionPlayer().init(options);
+	}
+
 	// extend Sprite
 	function extendSprite(ext) {
 		return extend(Sprite, function() {}, ext);
@@ -1431,6 +1546,7 @@
 		createBitmap: createBitmap,
 		createEmbeddedImage: createEmbeddedImage,
 		createSpriteSheet: createSpriteSheet,
+		createMotionPlayer: createMotionPlayer,
 		extendSprite: extendSprite,
 		extendGraphics: extendGraphics,
 		pixelRatio: pixelRatio,
