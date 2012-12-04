@@ -137,6 +137,7 @@
 				if (handlers.indexOf(handler) < 0) {
 					handlers.push(handler);
 				}
+				return self;
 			},
 			// unregister event handlers
 			off: function(name, handler) {
@@ -154,6 +155,12 @@
 						delete self.listeners[name];
 					}
 				}
+				return self;
+			},
+			// check emittable
+			emittable: function(name) {
+				var handlers = this.listeners;
+				return handlers[name] && handlers[name].length > 0;
 			},
 			// trigger handlers which registered the event
 			emit: function(name,event) {
@@ -167,6 +174,7 @@
 						handlers[i].call(self, event);
 					}
 				}
+				return self;
 			}
 		};
 		return EventEmitter;
@@ -433,6 +441,19 @@
 		create: function(object) {
 			return [object.x, object.y, object.width, object.height];
 		},
+		// check point is contained the region
+		contain: function(rect, position) {
+			if (!rect || !position) {
+				return false;
+			}
+			var x = position.x;
+			var y = position.y;
+			return rect[0] <= x &&
+				rect[1] <= y &&
+				x <= rect[0]+rect[2] &&
+				y <= rect[1]+rect[3]
+			;
+		},
 		// return intersected
 		intersect: function(rect1, rect2, returnWhole) {
 			var r1l = rect1[0];
@@ -519,6 +540,27 @@
 	 * which cannot render anything but can put DisplayObject
 	 */
 	var Stage = extend(EventEmitter, function Stage() {}, function() {
+
+		function getxy(e) {
+			var touches = e.changedTouches;
+			if (touches) {
+				// touch event
+				var touch = touches[0];
+				var target = touch.target;
+				return {
+					x: (touch.pageX - target.offsetLeft) * pixelRatio,
+					y: (touch.pageY - target.offsetTop) * pixelRatio
+				};
+			} else {
+				// mouse event
+				target = e.target;
+				return {
+					x: (e.pageX - target.offsetLeft) * pixelRatio,
+					y: (e.pageY - target.offsetTop) * pixelRatio
+				}
+			}
+		}
+
 		return {
 			init: function(options) {
 				options = options || {};
@@ -541,6 +583,43 @@
 				self.list = createLinkedList();
 				self.redraws = [];
 				self.player = options.player || createMotionPlayer();
+				var touching = self.touching = {
+					current: null,
+					last: null
+				};
+
+				function touchstart(e) {
+					var list = self.list;
+					var object = self.find(getxy(e));
+					if (touching.current) {
+						// trigger touch end if previous object left
+						touching.current.emit('touchend');
+					}
+					touching.current = object;
+					object.emit('touchstart');
+				}
+				function touchend(e) {
+					var list = self.list;
+					var object = self.find(getxy(e));
+					// trigger tap event if touched object is same
+					if (touching.current === object) {
+						object.emit('touchend');
+						object.emit('tap');
+					} else if (touching.current) {
+						touching.current.emit('touchend');
+					}
+					touching.current = null;
+					touching.last = object;
+				}
+
+				// touch start event
+				canvas.addEventListener('mousedown', touchstart);
+				canvas.addEventListener('mouseup', touchend);
+				canvas.addEventListener('touchstart', touchstart);
+				canvas.addEventListener('touchend', touchend);
+				// mouse event
+				//canvas.addEventListener('mousedown', mousedown);
+				//canvas.addEventListener('mouseup', mouseup);
 
 				setTimeout(function() {
 					self.frame(now());
@@ -552,6 +631,31 @@
 				if (element) {
 					element.appendChild(self.canvas);
 				}
+			},
+			find: function(position) {
+				var self = this;
+				function _find(object) {
+					var list = object.list;
+					var node = list.tail;
+					while (node) {
+						var curr = node[1];
+						// recursive check
+						if (curr.list) {
+							var found = _find(curr);
+							if (found) {
+								return found;
+							}
+						}
+						// current check
+						var region = curr.region;
+						if (Rectangle.contain(region, position)) {
+							return curr;
+						}
+						// next if not found
+						node = node[0];
+					}
+				}
+				return _find(self);
 			},
 			// add object to the stage
 			add: function() {
@@ -666,6 +770,7 @@
 					update: false,
 					draw: false
 				};
+				self.update(true);
 			},
 			// update matrix and redraw canvas if needed
 			update: function(draw) {
@@ -1089,14 +1194,6 @@
 						return context[name];
 					});
 				});
-
-
-				self.__defineSetter__('fillStyle', function(fillStyle) {
-					context.fillStyle = fillStyle;
-				});
-				self.__defineSetter__('strokeStyle', function(strokeStyle) {
-					context.strokeStyle = strokeStyle;
-				});
 			},
 			resize: function(width,height) {
 				var self = this;
@@ -1110,6 +1207,14 @@
 				var context = canvas.getContext('2d');
 				context.scale(pixelRatio, pixelRatio);
 				self.graphics = context;
+			},
+			clear: function() {
+				var self = this;
+				if (self.source) {
+					var context = self.graphics;
+					var canvas = self.source;
+					context.clearRect(0,0,canvas.width,canvas.height);
+				}
 			},
 			fillRoundRect: function(x, y, width, height, elt, ert, erb, elb) {
 				var self = this;
@@ -1150,7 +1255,7 @@
 			'fill','arcTo','arc','rect','stroke','clip','isPointInPath',
 			'clearRect','fillRect','strokeRect','addColorStop','createLinearGradient',
 			'createRadialGradient','createPattern','drawImage','fillText','strokeText',
-			'measureText'
+			'measureText','save','restore'
 		].forEach(function(name) {
 			proto[name] = function() {
 				var self = this;
@@ -1296,38 +1401,53 @@
 			release: function() {
 				EmbeddedImage.prototype.release.apply(this);
 			},
-			create: function(name) {
+			create: function(name, options) {
 				var self = this;
 				var ref = self.sprites[name];
 				if (!ref) {
 					throw new Error(name + ' does not exist');
 				}
-				return new SpriteBitmap().init({
-					sheet: self,
-					data: ref
-				});
+				options = options || {};
+				options.sheet = self;
+				options.data = ref;
+				return new SpriteBitmap().init(options);
 			}
 		};
 	});
 
-	var SpriteBitmap = extend(Sprite, function BitmapSprite() {}, function() {
+	var SpriteBitmap = extend(Sprite, function SpriteBitmap() {}, function() {
 		return {
 			init: function(options) {
 				options = options || {};
 				var self = this;
 				var data = options.data;
+				var sheet = self.sheet = options.sheet;
 				self.source = {
-					image: options.sheet.image,
-					x: data.dest.x,
-					y: data.dest.y,
-					width: data.width,
-					height: data.height
+					image: sheet.image,
 				};
+				self._source(data);
+				self.x = 'x' in options ? options.x : round(data.x / pixelRatio);
+				self.y = 'y' in options ? options.y : round(data.y / pixelRatio);
+			},
+			// apply data as source
+			_source: function(data) {
+				var self = this;
+				var source = self.source;
+				source.x = data.dest.x;
+				source.y = data.dest.y;
+				source.width = data.width;
+				source.height = data.height;
 				self.baseX = round(data.base.x / pixelRatio);
 				self.baseY = round(data.base.y / pixelRatio);
-				self.x = round(data.x / pixelRatio);
-				self.y = round(data.y / pixelRatio);
 				self.update(true);
+			},
+			// change image to another ref
+			change: function(name) {
+				var self = this;
+				var data = self.sheet.sprites[name];
+				if (data) {
+					self._source(data);
+				}
 			}
 		};
 	});
@@ -1367,7 +1487,6 @@
 			var self = this;
 			var repeat = opts.repeat === true;
 			// callback for completion of motion
-			var done = opts.done;
 			var data = self.motions[name];
 			if (!data) {
 				console.error('motion',name,'is not registered');
@@ -1390,7 +1509,7 @@
 						repeat: repeat,
 						data: mdata,
 						totalFrame: totalFrame,
-						done: done,
+						onComplete: opts.onComplete,
 						frame: 0
 					};
 				}
@@ -1423,6 +1542,9 @@
 					if (playing.repeat) {
 						playing.frame = 0;
 					} else {
+						if (playing.onComplete) {
+							playing.onComplete.apply(playing.target);
+						}
 						delete playings[oid];
 					}
 				}
