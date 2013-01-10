@@ -668,6 +668,7 @@
 					}
 					self.list.push(object);
 					object._stage = self;
+					object.emit('added');
 				}
 			},
 			// remove object from the stage
@@ -679,6 +680,7 @@
 					self.list.remove(object);
 					self.redraws.push(object.region);
 					object._stage = null;
+					object.emit('removed');
 				}
 			},
 			// frame handler
@@ -1415,6 +1417,84 @@
 		};
 	});
 
+	var CutoffAnimationSheet = (function() {
+		var CutoffAnimationSheet = function() {
+		};
+		CutoffAnimationSheet.prototype = {
+			init: function(options) {
+				options = options || {};
+				var self = this;
+				var positionKey;
+				var name;
+				self.names = [];
+				self.spritesheet = options.sheet;
+				for (positionKey in self.spritesheet.sprites) {
+					self.spritesheet.sprites[positionKey]['base'] = {x:0, y:0};
+				}
+				for (name in self.spritesheet.data) {
+					if (name.indexOf('positions') < 0) {
+						self.names.push(name);
+					}
+				}
+				return self;
+			},
+			create: function(name) {
+				var self = this;
+				var indices = self.spritesheet.data[name];
+				if (!indices) {
+					throw new Error(name + ' does not exist');
+				}
+				var spriteArray = [];
+				for (var i = 0, l = indices.length; i < l; i++) {
+					spriteArray.push(
+						self.spritesheet.create('positions.' + indices[i]));
+				}
+				return new CutoffAnimation().init({sprites: spriteArray});
+			}
+		};
+		return CutoffAnimationSheet;
+	}());
+
+	var CutoffAnimation = extend(Sprite, function CutoffAnimation() {}, function() {
+		return {
+			init: function(options) {
+				options = options || {};
+				var self = this;
+				var sprites = options.sprites || [];
+				self.frames = sprites;
+				self.currentFrame = 0;
+				self.totalFrames = sprites.length;
+				self.currentSprite = self.frames[self.currentFrame];
+				self.add(self.currentSprite);
+				self.update();
+				self._doNothing = function() {};
+				self._stageListener = self._doNothing;
+				self.on('added', function() {
+					self._stage.on('enterframe', function() {
+						self._stageListener();
+					});
+				});
+			},
+			nextFrame: function() {
+				var self = this;
+				self.currentFrame++;
+				self.currentFrame %= self.totalFrames;
+				self.remove(self.currentSprite);
+				self.currentSprite = self.frames[self.currentFrame];
+				self.add(self.currentSprite);
+				self.update();
+			},
+			play: function() {
+				var self = this;
+				self._stageListener = self.nextFrame;
+			},
+			stop: function() {
+				var self = this;
+				self._stageListener = self._doNothing;
+			}
+		};
+	});
+
 	var SpriteBitmap = extend(Sprite, function SpriteBitmap() {}, function() {
 		return {
 			init: function(options) {
@@ -1629,6 +1709,11 @@
 		return new SpriteSheet().init(options);
 	}
 
+	// create a cutoff animation sprite sheet
+	function createCutoffAnimationSheet(options) {
+		return new CutoffAnimationSheet().init(options);
+	}
+
 	// create a motion player
 	function createMotionPlayer(options) {
 		return new MotionPlayer().init(options);
@@ -1668,6 +1753,7 @@
 		createBitmap: createBitmap,
 		createEmbeddedImage: createEmbeddedImage,
 		createSpriteSheet: createSpriteSheet,
+		createCutoffAnimationSheet: createCutoffAnimationSheet,
 		createMotionPlayer: createMotionPlayer,
 		extendSprite: extendSprite,
 		extendGraphics: extendGraphics,
