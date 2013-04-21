@@ -3345,14 +3345,14 @@
 						if (isArray(object)) {
 							for(i = 0; i < object.length; i++){
 								var o = object[i];
-								o.specifiedMatrix = matrix;
 								if (matrix) {
+									o.specifiedMatrix = matrix;
 									o.update();
 								}
 							}
 						} else {
-							object.specifiedMatrix = matrix;
 							if (matrix) {
+								object.specifiedMatrix = matrix;
 								object.update();
 							}
 						}
