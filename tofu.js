@@ -2252,8 +2252,8 @@
 				self.source = canvas;
 				self.context = context;
 				var props = self.props;
-				props.width = width;
-				props.height = height;
+				self.width = width;
+				self.height = height;
 				if (HTML_MODE) {
 					css(self.html, {
 						backgroundImage: '-webkit-canvas('+canvas.id+')',
@@ -2267,16 +2267,13 @@
 				var canvas = context.canvas;
 				self.context = context;
 				self.source = canvas;
-				var width  = round(canvas.width  / pixelRatio);
-				var height = round(canvas.height / pixelRatio);
-				var props = self.props;
-				props.width = width;
-				props.height = height;
+				self.width  = round(canvas.width  / pixelRatio);
+				self.height = round(canvas.height / pixelRatio);
 				if (HTML_MODE) {
 					css(self.html, {
 						backgroundImage: '-webkit-canvas('+canvas.id+')',
-						width: px(width),
-						height: px(height)
+						width: px(self.width),
+						height: px(self.height)
 					});
 				}
 			},
@@ -2287,9 +2284,8 @@
 				var y = 'y' in source ? source.y : 0;
 				var width = 'width' in source ? source.width : image.width;
 				var height = 'height' in source ? source.height : image.height;
-				var props = self.props;
-				props.width = width;
-				props.height = height;
+				self.width = ceil(width / pixelRatio);
+				self.height = ceil(height / pixelRatio);
 				if (CANVAS_MODE) {
 					self.source = {
 						image: image,
@@ -4416,7 +4412,7 @@
 		// create base prototype
 		var superproto = parent.prototype;
 		// apply super prototype
-		var thisproto = getter();
+		var thisproto = getter.apply(base);
 		thisproto.__super__ = superproto;
 		if (superproto.__props__ && !thisproto.__props__) {
 			thisproto.__props__ = {};
@@ -4707,7 +4703,7 @@
 			break;
 		}
 
-		var line = option.line;
+		line = option.line;
 
 		//draw
 		for (i=0; i < len; ++i) {
