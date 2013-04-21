@@ -4550,7 +4550,7 @@
 	}
 
 	function imageUrl(url) {
-		url = url.replace('${ratio}', pixelRatio * 10);
+		url = url.replace('${ratio}', floor(pixelRatio * 10));
 		return url;
 	}
 
