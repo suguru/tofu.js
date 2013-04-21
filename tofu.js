@@ -1602,20 +1602,27 @@
 				var list = self.list;
 				var intersect = Rectangle.intersect;
 
-				if (self.regionmax) {
-					// calculate maximum region for the instance
-					if (regionmax) {
-						regionmax = intersect(regionmax, self.regionmax);
-					} else {
-						regionmax = self.regionmax;
-					}
-				}
-
 				var node, curr;
+
+				var calculateRegionMax = function(regionmax) {
+					if (self.regionmax) {
+						// calculate maximum region for the instance
+						if (regionmax) {
+							return intersect(regionmax, self.regionmax);
+						} else {
+							return self.regionmax;
+						}
+					} else {
+						return regionmax;
+					}
+				};
 
 				if (flags.update) {
 
 					self.calculate();
+
+					regionmax = calculateRegionMax(regionmax);
+
 					flags.update = false;
 
 					if (CANVAS_MODE) {
@@ -1670,6 +1677,7 @@
 						}
 					}
 				} else if (flags.child && list) {
+					regionmax = calculateRegionMax(regionmax);
 					node = list.head;
 					while (node) {
 						curr = node[1];
