@@ -946,8 +946,8 @@
 					e.stopPropagation = stopPropagation;
 					if (touchPosition.enable) {
 						var pos = getxy(e);
-						e.stageX = round(pos.x / pixelRatio);
-						e.stageY = round(pos.y / pixelRatio);
+						e.stageX = round(pos.x / htmlRatio);
+						e.stageY = round(pos.y / htmlRatio);
 						e.moveX = (pos.x - touchPosition.x) / htmlRatio;
 						e.moveY = (pos.y - touchPosition.y) / htmlRatio;
 						e.pageX = pos.page.x;
@@ -1602,20 +1602,27 @@
 				var list = self.list;
 				var intersect = Rectangle.intersect;
 
-				if (self.regionmax) {
-					// calculate maximum region for the instance
-					if (regionmax) {
-						regionmax = intersect(regionmax, self.regionmax);
-					} else {
-						regionmax = self.regionmax;
-					}
-				}
-
 				var node, curr;
+
+				var calculateRegionMax = function(regionmax) {
+					if (self.regionmax) {
+						// calculate maximum region for the instance
+						if (regionmax) {
+							return intersect(regionmax, self.regionmax);
+						} else {
+							return self.regionmax;
+						}
+					} else {
+						return regionmax;
+					}
+				};
 
 				if (flags.update) {
 
 					self.calculate();
+
+					regionmax = calculateRegionMax(regionmax);
+
 					flags.update = false;
 
 					if (CANVAS_MODE) {
@@ -1670,6 +1677,7 @@
 						}
 					}
 				} else if (flags.child && list) {
+					regionmax = calculateRegionMax(regionmax);
 					node = list.head;
 					while (node) {
 						curr = node[1];
@@ -2244,8 +2252,8 @@
 				self.source = canvas;
 				self.context = context;
 				var props = self.props;
-				props.width = width;
-				props.height = height;
+				self.width = width;
+				self.height = height;
 				if (HTML_MODE) {
 					css(self.html, {
 						backgroundImage: '-webkit-canvas('+canvas.id+')',
@@ -2259,16 +2267,13 @@
 				var canvas = context.canvas;
 				self.context = context;
 				self.source = canvas;
-				var width  = round(canvas.width  / pixelRatio);
-				var height = round(canvas.height / pixelRatio);
-				var props = self.props;
-				props.width = width;
-				props.height = height;
+				self.width  = round(canvas.width  / pixelRatio);
+				self.height = round(canvas.height / pixelRatio);
 				if (HTML_MODE) {
 					css(self.html, {
 						backgroundImage: '-webkit-canvas('+canvas.id+')',
-						width: px(width),
-						height: px(height)
+						width: px(self.width),
+						height: px(self.height)
 					});
 				}
 			},
@@ -2279,9 +2284,8 @@
 				var y = 'y' in source ? source.y : 0;
 				var width = 'width' in source ? source.width : image.width;
 				var height = 'height' in source ? source.height : image.height;
-				var props = self.props;
-				props.width = width;
-				props.height = height;
+				self.width = ceil(width / pixelRatio);
+				self.height = ceil(height / pixelRatio);
 				if (CANVAS_MODE) {
 					self.source = {
 						image: image,
@@ -2755,17 +2759,21 @@
 				options = options || {};
 				var self = this;
 				// image url
-				self.url = imageUrl(options.url);
-				// image must be scaled
-				var image = new Image();
-				image.onload = function() {
-					var img = this;
-					self.initImage({ image: img });
-					self.update(true);
-					self.emit('load');
-				};
-				image.src = self.url;
-				image = null;
+				if (options.url) {
+					self.url = imageUrl(options.url);
+					// image must be scaled
+					var image = new Image();
+					image.onload = function() {
+						var img = this;
+						self.initImage({ image: img });
+						self.update(true);
+						self.emit('load');
+					};
+					image.src = self.url;
+					image = null;
+				} else if (options.image) {
+					self.initImage({ image: options.image });
+				}
 				return self;
 			}
 		};
@@ -3337,14 +3345,14 @@
 						if (isArray(object)) {
 							for(i = 0; i < object.length; i++){
 								var o = object[i];
-								o.specifiedMatrix = matrix;
 								if (matrix) {
+									o.specifiedMatrix = matrix;
 									o.update();
 								}
 							}
 						} else {
-							object.specifiedMatrix = matrix;
 							if (matrix) {
+								object.specifiedMatrix = matrix;
 								object.update();
 							}
 						}
@@ -4408,7 +4416,7 @@
 		// create base prototype
 		var superproto = parent.prototype;
 		// apply super prototype
-		var thisproto = getter();
+		var thisproto = getter.apply(base);
 		thisproto.__super__ = superproto;
 		if (superproto.__props__ && !thisproto.__props__) {
 			thisproto.__props__ = {};
@@ -4542,7 +4550,7 @@
 	}
 
 	function imageUrl(url) {
-		url = url.replace('${ratio}', pixelRatio * 10);
+		url = url.replace('${ratio}', floor(pixelRatio * 10));
 		return url;
 	}
 
@@ -4699,7 +4707,7 @@
 			break;
 		}
 
-		var line = option.line;
+		line = option.line;
 
 		//draw
 		for (i=0; i < len; ++i) {
