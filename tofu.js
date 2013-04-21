@@ -946,8 +946,8 @@
 					e.stopPropagation = stopPropagation;
 					if (touchPosition.enable) {
 						var pos = getxy(e);
-						e.stageX = round(pos.x / pixelRatio);
-						e.stageY = round(pos.y / pixelRatio);
+						e.stageX = round(pos.x / htmlRatio);
+						e.stageY = round(pos.y / htmlRatio);
 						e.moveX = (pos.x - touchPosition.x) / htmlRatio;
 						e.moveY = (pos.y - touchPosition.y) / htmlRatio;
 						e.pageX = pos.page.x;
