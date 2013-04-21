@@ -2759,17 +2759,21 @@
 				options = options || {};
 				var self = this;
 				// image url
-				self.url = imageUrl(options.url);
-				// image must be scaled
-				var image = new Image();
-				image.onload = function() {
-					var img = this;
-					self.initImage({ image: img });
-					self.update(true);
-					self.emit('load');
-				};
-				image.src = self.url;
-				image = null;
+				if (options.url) {
+					self.url = imageUrl(options.url);
+					// image must be scaled
+					var image = new Image();
+					image.onload = function() {
+						var img = this;
+						self.initImage({ image: img });
+						self.update(true);
+						self.emit('load');
+					};
+					image.src = self.url;
+					image = null;
+				} else if (options.image) {
+					self.initImage({ image: options.image });
+				}
 				return self;
 			}
 		};
