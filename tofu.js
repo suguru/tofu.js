@@ -291,10 +291,11 @@
 					if (handlers) {
 						// call all handlers
 						var length = handlers.length;
-						var handler, i;
+						var handler, i, _handlers;
 						if (length > 0) {
+							_handlers = handlers.concat();
 							for (i = 0; i < length; i++) {
-								handler = handlers[i];
+								handler = _handlers[i];
 								if (handler) {
 									handler.apply(self, args);
 								}
