@@ -4871,6 +4871,7 @@
 		color: color,
 		drawText: drawText,
 		drawImage: drawImage,
+		drawImageDirect: drawImageDirect,
 		adjustText: adjustText,
 		extend: extend,
 
