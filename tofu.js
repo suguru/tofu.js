@@ -3395,13 +3395,15 @@
 						}
 					}
 				}
-				playing.frame = frame + 1;
-				if (playing.frame >= totalFrame) {
+				frame++;
+				if (frame >= totalFrame) {
 					if (playing.repeat) {
 						playing.frame = 0;
 					} else {
 						playing.end = true;
 					}
+				} else {
+					playing.frame = frame;
 				}
 			}
 			return self;
