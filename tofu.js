@@ -1508,6 +1508,7 @@
 				var width  = self.width = 'width' in options ? Number(options.width) : 0;
 				var height = self.height = 'height' in options ? Number(options.height) : 0;
 				self.matrix = [1,0,0,1,0,0]; // transformation matrix
+				self.matrixPrevious = [1,0,0,1,0,0]; // previous matrix
 				self.region = [0,0,0,0]; // maximum region of the object
 				self.regionmax = null;
 				self.regionmask = null;
@@ -1864,10 +1865,6 @@
 
 				// return if specified matrix set null
 				var specifiedMatrix = self.specifiedMatrix;
-				if (specifiedMatrix === null) {
-					delete self.specifiedMatrix;
-					return;
-				}
 
 				// prepare properties
 				var props = self.props;
@@ -1876,6 +1873,9 @@
 
 				// prepare matrix
 				var matrix = self.matrix = [1,0,0,1,0,0];
+				var matrixPrevious = self.matrixPrevious;
+				//Matrix.reset(matrix);
+
 				// translate for base X, Y
 				if (props.baseX !== 0 || props.baseY !== 0) {
 					Matrix.translate(matrix, htmlratio(-props.baseX), htmlratio(-props.baseY));
@@ -1904,10 +1904,16 @@
 					if (props.x !== 0 || props.y !== 0) {
 						Matrix.translate(matrix, htmlratio(props.x), htmlratio(props.y));
 					}
+					// copy to previous matrix
+					Matrix.copy(matrix, matrixPrevious);
 				} else {
-					// applly next matrix value
-					if (specifiedMatrix !== null) {
+					if (specifiedMatrix === null) {
+						Matrix.copy(matrixPrevious, matrix);
+					} else {
+						// applly next matrix value
 						Matrix.concat(matrix, matrix, specifiedMatrix);
+						/// copy to previous matrix
+						Matrix.copy(matrix, matrixPrevious);
 					}
 					// clear next matrix
 					delete self.specifiedMatrix;
@@ -2282,7 +2288,6 @@
 				var canvas = context.canvas;
 				self.source = canvas;
 				self.context = context;
-				var props = self.props;
 				self.width = width;
 				self.height = height;
 				if (HTML_MODE) {
@@ -3299,8 +3304,8 @@
 					for (var i = 0; i < partdata.length; i++) {
 						var partmatrix = partdata[i];
 						if (partmatrix) {
-							partmatrix[4] = round(partmatrix[4] * htmlRatio / 2);
-							partmatrix[5] = round(partmatrix[5] * htmlRatio / 2);
+							partmatrix[4] *= htmlRatio;
+							partmatrix[5] *= htmlRatio;
 						}
 					}
 				}
@@ -3376,16 +3381,12 @@
 						if (isArray(object)) {
 							for(i = 0; i < object.length; i++){
 								var o = object[i];
-								if (matrix) {
-									o.specifiedMatrix = matrix;
-									o.update();
-								}
+								o.specifiedMatrix = matrix;
+								o.update();
 							}
 						} else {
-							if (matrix) {
-								object.specifiedMatrix = matrix;
-								object.update();
-							}
+							object.specifiedMatrix = matrix;
+							object.update();
 						}
 					} else if (name === 'flags') {
 						var flags = array[frame];
