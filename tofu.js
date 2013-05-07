@@ -291,10 +291,11 @@
 					if (handlers) {
 						// call all handlers
 						var length = handlers.length;
-						var handler, i;
+						var handler, i, _handlers;
 						if (length > 0) {
+							_handlers = handlers.concat();
 							for (i = 0; i < length; i++) {
-								handler = handlers[i];
+								handler = _handlers[i];
 								if (handler) {
 									handler.apply(self, args);
 								}
@@ -4568,10 +4569,37 @@
 		var lines = [];
 		var line = '';
 		var next;
-		var totalHeight = 0;
+		var totalHeight = lineHeight;
 		var actualWidth = 0;
-		for (var i = 0; i < text.length; i++) {
-			var charcter = text.charAt(i);
+		var plainText;
+		var formats;
+
+		if (text.indexOf('<') !== -1 ){
+			//without format, create formats
+			plainText = text;
+			formats = [];
+			var matchStrings = text.match(/(([^<]+)|(<[^>]+>))/g);
+			var index = 0;
+			_.each(matchStrings, function(matchString){
+				if(matchString.indexOf('<') === 0){
+					var matchStringArray = matchString.substring(1, matchString.length - 1).split(':');
+					var styles = matchStringArray[0].split(',');
+					var plainSentence = matchStringArray[1];
+					formats.push({startIndex:index, text:plainSentence, length:plainSentence.length, color:styles[0], bold:styles[1] || false});
+					plainText = plainText.replace(matchString, plainSentence);
+
+					index += plainSentence.replace('\n', '').length;
+				} else {
+					index += matchString.replace('\n', '').length;
+				}
+			});
+		} else {
+			plainText = text;
+		}
+
+		var formatIndex = 0;
+		for (var i = 0; i < plainText.length; i++) {
+			var charcter = plainText.charAt(i);
 			next = line + charcter;
 			var mwidth = context.measureText(next).width;
 			if (mwidth > maxWidth || charcter === '\n') {
@@ -4580,14 +4608,27 @@
 				if (charcter === '\n') line = "";
 				// check max height
 				if (maxHeight && (totalHeight + lineHeight > maxHeight)) {
-					// if next height will exceeds, add ... and break
-					// TODO implement
-					line += '';
+					while(context.measureText(lines[lines.length-1] + '\u2026').width > maxWidth ){
+						var tempLine = lines[lines.length-1];
+						lines[lines.length-1] = tempLine.substring(0, tempLine.length-1);
+					}
+					lines[lines.length-1] += '\u2026';
+					line = "";
+					break;
 				}
+				totalHeight += lineHeight;
 			} else {
 				line = next;
 				if (actualWidth < mwidth) {
 					actualWidth = mwidth;
+				}
+			}
+
+			if (formats && formats[formatIndex]){
+				var format = formats[formatIndex];
+				if(format.startIndex === i){
+					format.lineIndex = lines.length;
+					formatIndex++;
 				}
 			}
 		}
@@ -4597,13 +4638,28 @@
 		}
 		return {
 			lines: lines,
-			width: actualWidth
+			width: actualWidth,
+			formats: formats,
+			sourceText: text
 		};
+
+		function withoutFormat(text){
+			if (text.indexOf('<') === -1 ){
+				return text;
+			}
+			var matchStrings = text.match(/(<.*?)>/g);
+			var reg = /(:.*)>/;
+			_.each(matchStrings, function(matchString){
+				var a = matchString.match(reg);
+				text = text.replace(matchString, a[1].replace(/:/, ''));
+			});
+			return text;
+		}
+
 	}
 
 	function drawText(option) {
-
-		var str = option.text || "";
+		var text = option.text;
 		var context = option.context;
 		var width = option.width || 100;
 		var height = option.height || 20;
@@ -4613,6 +4669,10 @@
 		var shadow = option.shadow;
 		var x = option.x || 0;
 		var y = option.y || 0;
+
+		if (!option.context) {
+			return;
+		}
 
 		if (option.textAlign) {
 			context.textAlign = option.textAlign;
@@ -4634,86 +4694,127 @@
 		if (context.font.match(/([0-9\.]+)px/)) {
 			fontSize = Number(RegExp.$1);
 		}
-
 		// lineheight
 		var lineHeightPx = (fontSize * lineHeight);
-		var stackHeight = fontSize;
-		var maxLine = Math.floor(height / lineHeightPx);
 
-		//split column
-		var columns = [];
-		var line = '';
-
-		var i = 0, slen = str.length;
-
-		for (i=0; i < slen; ++i) {
-
-			var char = str.charAt(i);
-			if (char === '\n'){
-				stackHeight += lineHeightPx;
-				columns.push(line);
-				line = '';
-				if (columns.length >= maxLine) {
-					break;
-				}
-			}
-
-			// add enter to the last when overflow of the width.
-			if (context.measureText(line + char).width > width) {
-				// start new line
-				stackHeight += lineHeightPx;
-				// max height
-				if (columns.length === maxLine - 1) {
-					// add horizontal ellipsis to the last line.
-					line = line.substring(0, line.length-1);
-					while (context.measureText(line + '\u2026').width >= width) {
-						line = line.substring(0, line.length-1);
-						if (line.length === 0) {
-							break;
-						}
-					}
-					line += '\u2026';
-				}
-				columns.push(line);
-				line = '';
-				if (columns.length >= maxLine) {
-					break;
-				}
-			}
-			line += char;
+		var adjustTextObject;
+		if ( typeof text === 'object'){
+			adjustTextObject = text;
+		} else {
+			adjustTextObject = adjustText(context, text, width, height, lineHeightPx);
 		}
-		if (line.length > 0) {
-			columns.push(line);
-		}
+		var columns = adjustTextObject.lines;
+		var stackHeight = lineHeightPx * columns.length;
 
-		var len = columns.length;
 		//align
-		var adjustX = 0;
+		var adjustX;
 		var adjustY = 0;
+		var formatLineAdjustText;
 		switch (context.textAlign) {
-		case "center":
-			adjustX = width/2;
-			break;
-		case "right":
-			adjustX = width;
-			break;
+			case "center":
+				adjustX = width/2;
+				formatLineAdjustText = function(text){
+					return Math.floor((width - context.measureText(text).width ) /2);
+				}
+				break;
+			case "right":
+				adjustX = width;
+				formatLineAdjustText = function(text){
+					return Math.floor((width - context.measureText(text).width ));
+				}
+				break;
+			default:
+				adjustX = 0;
+				formatLineAdjustText = function(text){
+					return 0;
+				}
+				break;
 		}
 		switch (baseline){
-		case "middle":
-			adjustY = (height - stackHeight)/2;
-			break;
-		case "bottom":
-			adjustY = (height - stackHeight);
-			break;
+			case "middle":
+				adjustY = (height - stackHeight)/2;
+				break;
+			case "bottom":
+				adjustY = (height - stackHeight);
+				break;
 		}
 
-		line = option.line;
+		var line = option.line || '';
+
+
+		var formats = adjustTextObject.formats;
+		var useFormatLines = [];
+		if (formats){
+			_.each(adjustTextObject.formats, function(f){
+				var lineFormat = useFormatLines[f.lineIndex];
+				if (!lineFormat){
+					lineFormat = useFormatLines[f.lineIndex] = [];
+				}
+				lineFormat.push(lineFormat);
+			});
+		}
+
+		var charPos = 0;
+		var currentFormat;
+		var formatIndex = 0;
+		var charXPos = 0;
+		var formatStringIndex = 0;
 
 		//draw
-		for (i=0; i < len; ++i) {
-			var _x = floor(adjustX + x);
+		for (var i=0; i < columns.length; ++i) {
+			var _x;
 			var _y = floor(adjustY + y + i * lineHeightPx + fontSize);
 			var column = columns[i];
+
+			//format
+			if(currentFormat || useFormatLines[i]){
+				context.save();
+				_x = formatLineAdjustText(column) + x;
+				context.textAlign = 'left';
+
+				for(var j = 0; j < column.length; j++){
+					if(!currentFormat){
+						var f = formats[formatIndex];
+
+						if (f && f.startIndex === charPos){
+							currentFormat = formats[formatIndex];
+							context.save();
+							if (currentFormat.color){
+								context.fillStyle = currentFormat.color;
+							}
+							if (currentFormat.bold){
+								context.font = 'bold ' + context.font;
+							}
+							formatIndex++;
+							formatStringIndex = 0;
+						}
+					}
+
+					var t = column.charAt(j);
+					drawTextLine(_x, _y, t);
+					if(currentFormat){
+						formatStringIndex++;
+						if(currentFormat.length <= formatStringIndex){
+							currentFormat = null;
+							context.restore();
+						}
+					}
+					_x += context.measureText(t).width;
+					charPos++;
+				}
+				context.restore();
+			} else {
+				_x = floor(adjustX + x);
+
+				drawTextLine(_x, _y, column);
+				charPos += column.length;
+			}
+		}
+		if (border) {
+			context.strokeRect(x,y,width,height);
+		}
+
+		function drawTextLine(x, y ,text){
 			if (shadow) {
 				var prevStyle = context.fillStyle;
 				shadow = (shadow === true) ? 'rgba(0,0,0,0.4)' : shadow;
@@ -4723,20 +4824,15 @@
 					context.strokeText(column,_x,_y + 1);
 				}
 				context.fillStyle = shadow || 'rgba(0,0,0,0.4)';
-				context.fillText(column,_x, _y + 1);
+				context.fillText(text,_x, _y + 1);
 				context.fillStyle = prevStyle;
 			}
-
 			if (line) {
-				context.strokeText(column, _x, _y);
+				context.strokeText(text, _x, _y);
 			}
-			context.fillText(column, _x, _y);
+			context.fillText(text, _x, _y);
+		}
 
-			stackHeight += lineHeightPx;
-		}
-		if (border) {
-			context.strokeRect(x,y,width,height);
-		}
 	}
 
 	// enable HTML mode
@@ -4775,6 +4871,7 @@
 		color: color,
 		drawText: drawText,
 		drawImage: drawImage,
+		drawImageDirect: drawImageDirect,
 		adjustText: adjustText,
 		extend: extend,
 
