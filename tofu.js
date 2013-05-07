@@ -45,6 +45,7 @@
 	var asin = Math.asin;
 	var PI = Math.PI;
 	var PI_DOUBLE = PI*2;
+	var PI_HALF = PI/2;
 
 	var CANVAS_MAP = {};
 	var CANVAS_ID = 0;
@@ -2001,6 +2002,35 @@
 				props.scaleX = sx;
 				props.scaleY = sy === undefined ? sx : sy;
 				return self;
+			},
+			// calculate rotate, translate, scale by matrix
+			calculateByMatrix: function(matrix) {
+				var self = this;
+				var props = self.props;
+				var a = matrix[0];
+				var b = matrix[1];
+				var c = matrix[2];
+				var d = matrix[3];
+				var tx = matrix[4];
+				var ty = matrix[5];
+				var scaleX = Math.sqrt((a*a)+(c*c));
+				var scaleY = Math.sqrt((b*b)+(d*d));
+				var sign = Math.atan(-c / a);
+				var rad = Math.acos(a / scaleX);
+				var angle = 0;
+
+				if ((rad > PI_HALF && sign > 0) || (rad < PI_HALF && sign < 0)) {
+					angle = (PI_DOUBLE - rad);
+				} else {
+					angle = rad;
+				}
+
+				props.angle = angle;
+				props.scaleX = scaleX;
+				props.scaleY = scaleY;
+				props.x = tx;
+				props.y = ty;
+
 			},
 			// get stage of this object
 			stage: function() {
