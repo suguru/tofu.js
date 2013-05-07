@@ -4729,32 +4729,32 @@
 		var adjustY = 0;
 		var formatLineAdjustText;
 		switch (context.textAlign) {
-			case "center":
-				adjustX = width/2;
-				formatLineAdjustText = function(text){
-					return Math.floor((width - context.measureText(text).width ) /2);
-				}
-				break;
-			case "right":
-				adjustX = width;
-				formatLineAdjustText = function(text){
-					return Math.floor((width - context.measureText(text).width ));
-				}
-				break;
-			default:
-				adjustX = 0;
-				formatLineAdjustText = function(text){
-					return 0;
-				}
-				break;
+		case "center":
+			adjustX = width/2;
+			formatLineAdjustText = function(text) {
+				return Math.floor((width - context.measureText(text).width ) /2);
+			};
+			break;
+		case "right":
+			adjustX = width;
+			formatLineAdjustText = function(text) {
+				return Math.floor((width - context.measureText(text).width ));
+			};
+			break;
+		default:
+			adjustX = 0;
+			formatLineAdjustText = function() {
+				return 0;
+			};
+			break;
 		}
 		switch (baseline){
-			case "middle":
-				adjustY = (height - stackHeight)/2;
-				break;
-			case "bottom":
-				adjustY = (height - stackHeight);
-				break;
+		case "middle":
+			adjustY = (height - stackHeight)/2;
+			break;
+		case "bottom":
+			adjustY = (height - stackHeight);
+			break;
 		}
 
 		var line = option.line || '';
