@@ -4610,7 +4610,8 @@
 			formats = [];
 			var matchStrings = text.match(/(([^<]+)|(<[^>]+>))/g);
 			var index = 0;
-			_.each(matchStrings, function(matchString){
+			for (var name in matchStrings) {
+				var matchString = matchStrings[name];
 				if(matchString.indexOf('<') === 0){
 					var matchStringArray = matchString.substring(1, matchString.length - 1).split(':');
 					var styles = matchStringArray[0].split(',');
@@ -4622,7 +4623,7 @@
 				} else {
 					index += matchString.replace('\n', '').length;
 				}
-			});
+			}
 		} else {
 			plainText = text;
 		}
@@ -4672,20 +4673,6 @@
 			formats: formats,
 			sourceText: text
 		};
-
-		function withoutFormat(text){
-			if (text.indexOf('<') === -1 ){
-				return text;
-			}
-			var matchStrings = text.match(/(<.*?)>/g);
-			var reg = /(:.*)>/;
-			_.each(matchStrings, function(matchString){
-				var a = matchString.match(reg);
-				text = text.replace(matchString, a[1].replace(/:/, ''));
-			});
-			return text;
-		}
-
 	}
 
 	function drawText(option) {
@@ -4775,19 +4762,19 @@
 		var formats = adjustTextObject.formats;
 		var useFormatLines = [];
 		if (formats){
-			_.each(adjustTextObject.formats, function(f){
-				var lineFormat = useFormatLines[f.lineIndex];
+			for (var name in formats) {
+				var format = formats[name];
+				var lineFormat = useFormatLines[format.lineIndex];
 				if (!lineFormat){
-					lineFormat = useFormatLines[f.lineIndex] = [];
+					lineFormat = useFormatLines[format.lineIndex] = [];
 				}
 				lineFormat.push(lineFormat);
-			});
+			}
 		}
 
 		var charPos = 0;
 		var currentFormat;
 		var formatIndex = 0;
-		var charXPos = 0;
 		var formatStringIndex = 0;
 
 		//draw
