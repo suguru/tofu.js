@@ -3712,7 +3712,9 @@
 					// fix as integer value
 					target.x = ~~(target.x);
 					target.y = ~~(target.y);
-					target.update();
+					if (target.update) {
+						target.update();
+					}
 
 					// emit update
 					self.emit('update');
