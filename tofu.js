@@ -4644,8 +4644,21 @@
 				if(matchString.indexOf('<') === 0){
 					var matchStringArray = matchString.substring(1, matchString.length - 1).split(':');
 					var styles = matchStringArray[0].split(',');
+					var color = styles[0];
+					if (color === 'bold' || color === 'italic') {
+						color = null;
+					}
+					var bold = styles.indexOf('bold') >= 0;
+					var italic = styles.indexOf('italic') >= 0;
 					var plainSentence = matchStringArray[1];
-					formats.push({startIndex:index, text:plainSentence, length:plainSentence.length, color:styles[0], bold:styles[1] || false});
+					formats.push({
+						startIndex:index,
+						text:plainSentence,
+						length:plainSentence.length,
+						color: color,
+						bold: bold,
+						italic: italic
+					});
 					plainText = plainText.replace(matchString, plainSentence);
 
 					index += plainSentence.replace('\n', '').length;
@@ -4668,7 +4681,7 @@
 				if (charcter === '\n') line = "";
 				// check max height
 				if (maxHeight && (totalHeight + lineHeight > maxHeight)) {
-					while(context.measureText(lines[lines.length-1] + '\u2026').width > maxWidth ){
+					while (context.measureText(lines[lines.length-1] + '\u2026').width > maxWidth ){
 						var tempLine = lines[lines.length-1];
 						lines[lines.length-1] = tempLine.substring(0, tempLine.length-1);
 					}
@@ -4705,7 +4718,8 @@
 	}
 
 	function drawText(option) {
-		var text = option.text;
+
+		var text = option.text || '';
 		var context = option.context;
 		var width = option.width || 100;
 		var height = option.height || 20;
@@ -4716,7 +4730,7 @@
 		var x = option.x || 0;
 		var y = option.y || 0;
 
-		if (!option.context) {
+		if (!context) {
 			return;
 		}
 
@@ -4749,7 +4763,7 @@
 		} else {
 			adjustTextObject = adjustText(context, text, width, height, lineHeightPx);
 		}
-		var columns = adjustTextObject.lines;
+		var columns = adjustTextObject.lines || [];
 		var stackHeight = lineHeightPx * columns.length;
 
 		//align
@@ -4760,13 +4774,13 @@
 		case "center":
 			adjustX = width/2;
 			formatLineAdjustText = function(text) {
-				return Math.floor((width - context.measureText(text).width ) /2);
+				return floor((width - context.measureText(text).width ) /2);
 			};
 			break;
 		case "right":
 			adjustX = width;
 			formatLineAdjustText = function(text) {
-				return Math.floor((width - context.measureText(text).width ));
+				return floor((width - context.measureText(text).width ));
 			};
 			break;
 		default:
@@ -4828,8 +4842,14 @@
 							if (currentFormat.color){
 								context.fillStyle = currentFormat.color;
 							}
+							var font = context.font;
 							if (currentFormat.bold){
-								context.font = 'bold ' + context.font;
+								font = 'bold ' + font;
+								context.font = font;
+							}
+							if (currentFormat.italic) {
+								font = 'italic ' + font;
+								context.font = font;
 							}
 							formatIndex++;
 							formatStringIndex = 0;
