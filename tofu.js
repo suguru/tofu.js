@@ -193,6 +193,12 @@
 		if (alen >= 6) {
 			width = floor(width);
 			height = floor(height);
+			if (width > image.width) {
+				width = image.width;
+			}
+			if (height > image.height) {
+				height = image.height;
+			}
 			if (alen === 6) {
 				context.drawImage(image, x, y, width, height);
 				return;
