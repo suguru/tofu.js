@@ -2204,6 +2204,7 @@
 				var self = this;
 				self.on('tap', stopPropagation);
 				self.on('touchstart', stopPropagation);
+				self.on('touchmove', stopPropagation);
 				self.on('touchend', stopPropagation);
 				self.on('touchcancel', stopPropagation);
 			}
