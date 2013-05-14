@@ -1,6 +1,6 @@
 {
 	"name": "tofu.js",
-	"version": "0.1.2",
+	"version": "0.1.4",
 	"main": "tofu.js",
 	"ignore": [
 		"test/*"
