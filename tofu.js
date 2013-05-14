@@ -4108,8 +4108,8 @@
 				}
 			},
 			easeInOut: function(t, b, c, d) {
-				if (t < d/2) return easing.bounce.easeIn(0, c, d)(t * 2) * 0.5 + b;
-				else return easing.bounce.easeOut(0, c, d)(t * 2 - d) * 0.5 + c*0.5 + b;
+				if (t < d/2) return easing.bounce.easeIn(t * 2, 0, c, d) * 0.5 + b;
+				else return easing.bounce.easeOut(t * 2 - d, 0, c, d) * 0.5 + c*0.5 + b;
 			}
 		},
 		circ: {
@@ -4154,18 +4154,17 @@
 				if ((t /= d)===1) return b+c;
 				if (!p) p=d*0.3;
 				if (!a || a < abs(c)) { a=c; s=p/4; }
-				else s = p/(2*PI) * asin (c/a);
+				else s = p/(2*PI) * asin(c/a);
 				return (a*pow(2,-10*t) * sin( (t*d-s)*(2*PI)/p ) + c + b);
 			},
 			easeInOut:function(t, b, c, d, a, p) {
-				if (t===0) return b;
-				t = t / d / 2;
 				var s;
-				if (t===2) return b+c;
+				if (t === 0) return b;
+				if ((t /= d)/2 === 2) return b+c;
 				if (!p) p=d*(0.3*1.5);
-				if (!a || a < abs(c)) { a=c; s=p/4; }
+				if (a < abs(c)) { a=c; s=p/4; }
 				else s = p/(2*PI) * asin (c/a);
-				if (t < 1) return -0.5*(a * pow(2,10*(t-=1)) * sin( (t*d-s)*(2*PI)/p )) + b;
+				if (t < 1) return -0.5*(a*pow(2,10*(t-=1)) * sin( (t*d-s)*(2*PI)/p )) + b;
 				return a*pow(2,-10*(t-=1)) * sin( (t*d-s)*(2*PI)/p )*0.5 + c + b;
 			}
 		},
