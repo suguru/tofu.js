@@ -208,7 +208,9 @@
 		dy = floor(dy);
 		dwidth = floor(dwidth);
 		dheight = floor(dheight);
-		context.drawImage(image, x, y, width, height, dx, dy, dwidth, dheight);
+		if (image.width > 0 && image.height > 0) {
+			context.drawImage(image, x, y, width, height, dx, dy, dwidth, dheight);
+		}
 	}
 
 	// stop propagation for event listener
