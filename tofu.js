@@ -2588,10 +2588,26 @@
 				var graphics = self.graphics;
 				graphics.beginPath();
 				graphics.moveTo(x1 + elt, y1);
-				graphics.arcTo(x2, y1, x2    , y1+ert, ert);
-				graphics.arcTo(x2, y2, x2-erb, y2    , erb);
-				graphics.arcTo(x1, y2, x1    , y2-elb, elb);
-				graphics.arcTo(x1, y1, x1+elt, y1    , elt);
+				if (ert !== 0) {
+					graphics.arcTo( x2, y1, x2    , y1+ert, ert);
+				} else {
+					graphics.lineTo(x2, y1);
+				}
+				if (erb !== 0) {
+					graphics.arcTo( x2, y2, x2-erb, y2    , erb);
+				} else {
+					graphics.lineTo(x2, y2);
+				}
+				if (elb !== 0) {
+					graphics.arcTo( x1, y2, x1    , y2-elb, elb);
+				} else {
+					graphics.lineTo(x1, y2);
+				}
+				if (elt !== 0) {
+					graphics.arcTo( x1, y1, x1+elt, y1    , elt);
+				} else {
+					graphics.lineTo(x1, y1);
+				}
 				graphics.closePath();
 			},
 			drawRoundRect: function() {
