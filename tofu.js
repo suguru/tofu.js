@@ -1435,10 +1435,6 @@
 					width * htmlRatio,
 					height * htmlRatio
 				];
-				if (HTML_MODE) {
-					css(self.html, {
-					});
-				}
 			},
 			// get container element
 			container: function() {
@@ -1934,6 +1930,12 @@
 					css(self.html, {
 						'-webkit-transform': 'matrix('+matrix.join(',')+')'
 					});
+					if (self._shouldDisplay) {
+						delete self._shouldDisplay;
+						css(self.html, {
+							'display': 'block'
+						});
+					}
 				}
 
 				// concatnate
@@ -2057,12 +2059,11 @@
 			// show this object
 			show: function() {
 				var self = this;
-				if (CANVAS_MODE) {
-					if (self.hidden) {
-						self.update();
+				if (self.hidden) {
+					if (HTML_MODE) {
+						self._shouldDisplay = true;
 					}
-				} else {
-					css(self.html, { display: 'block' });
+					self.update();
 				}
 				delete self.hidden;
 				return self;
@@ -2100,6 +2101,10 @@
 					}
 					self.list.push(object);
 					if (HTML_MODE) {
+						css(object.html, {
+							display: 'none'
+						});
+						object._shouldDisplay = true;
 						self._htmlContainer().appendChild(object.html);
 					}
 					object.parent = self;
