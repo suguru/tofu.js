@@ -1,7 +1,7 @@
 {
 	"name": "tofu.js",
 	"repo": "suguru/tofu.js",
-	"version": "0.1.4",
+	"version": "0.1.5",
 	"scripts": ["tofu.js"],
 	"styles": [],
 	"license": "MIT"
