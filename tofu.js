@@ -2871,6 +2871,7 @@
 
 				options = options || {};
 				var self = this;
+				var url = imageUrl(options.url);
 				var img = new Image();
 				img.crossOrigin = '';
 				img.onload = function() {
@@ -2883,10 +2884,9 @@
 					drawImageDirect(context, img,0,0);
 
 					function getImageData(callback) {
-						var data;
-						try {
-							data = context.getImageData(0,0,width,height).data;
-						} catch (e) {
+						
+
+						function getJson(callback) {
 							// try to load from JSON if security error caused
 							var jsonUrl = img.src.replace(/\.png$/, '.json');
 							var http = new XMLHttpRequest();
@@ -2896,12 +2896,19 @@
 										callback(JSON.parse(http.responseText));
 									} else if (http.status >= 400) {
 										// error
-										console.error('Failed to load json data ' + jsonUrl);
+										throw new Error('failed to get embedded data');
 									}
 								}
 							};
 							http.open('get', jsonUrl, true);
 							http.send();
+						}
+
+						var data;
+						try {
+							data = context.getImageData(0,0,width,height).data;
+						} catch (e) {
+							getJson(callback);
 							return;
 						}
 
@@ -2914,7 +2921,9 @@
 							data[currentPosition + 2]
 						);
 						if (sign !== SIGNATURE) {
-							throw new Error('no embedded data');
+							// if failed to read SIGNATURE, try to get from JSON file
+							getJson(callback);
+							return;
 						}
 						currentPosition = currentPosition - 3;
 						var strLength = data[currentPosition] << BITS_PER_BYTE | (data[currentPosition + 1]);
@@ -2952,7 +2961,7 @@
 				img.onerror = function(e) {
 					self.emit('error',e);
 				};
-				img.src = imageUrl(options.url);
+				img.src = url;
 				self.image = img;
 			},
 			prepare: function() {
@@ -4646,7 +4655,9 @@
 		var plainText;
 		var formats;
 
-		if (text.indexOf('<') !== -1 ){
+		text = text || '';
+
+		if (/<[^>]+>/.test(text)) {
 			//without format, create formats
 			plainText = text;
 			formats = [];
