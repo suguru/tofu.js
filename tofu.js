@@ -2723,10 +2723,16 @@
 		].forEach(function(name) {
 			var define = {
 				get: function() {
-					return this.graphics[name];
+					var graphics = this.graphics;
+					if (graphics) {
+						return graphics[name];
+					}
 				},
 				set: function(value) {
-					this.graphics[name] = value;
+					var graphics = this.graphics;
+					if (graphics) {
+						graphics[name] = value;
+					}
 				},
 				enumerable: true,
 				configurabe: true
