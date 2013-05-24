@@ -1932,9 +1932,11 @@
 					});
 					if (self._shouldDisplay) {
 						delete self._shouldDisplay;
-						css(self.html, {
-							'display': 'block'
-						});
+						if (!self.hidden) {
+							css(self.html, {
+								'display': 'block'
+							});
+						}
 					}
 				}
 
