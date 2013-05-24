@@ -4665,7 +4665,7 @@
 			var index = 0;
 			for (var name in matchStrings) {
 				var matchString = matchStrings[name];
-				if(matchString.indexOf('<') === 0){
+				if (matchString.indexOf('<') === 0){
 					var matchStringArray = matchString.substring(1, matchString.length - 1).split(':');
 					var styles = matchStringArray[0].split(',');
 					var color = styles[0];
@@ -4675,17 +4675,20 @@
 					var bold = styles.indexOf('bold') >= 0;
 					var italic = styles.indexOf('italic') >= 0;
 					var plainSentence = matchStringArray[1];
-					formats.push({
-						startIndex:index,
-						text:plainSentence,
-						length:plainSentence.length,
-						color: color,
-						bold: bold,
-						italic: italic
-					});
-					plainText = plainText.replace(matchString, plainSentence);
-
-					index += plainSentence.replace('\n', '').length;
+					if (plainSentence) {
+						formats.push({
+							startIndex:index,
+							text:plainSentence,
+							length:plainSentence.length,
+							color: color,
+							bold: bold,
+							italic: italic
+						});
+						plainText = plainText.replace(matchString, plainSentence);
+						index += plainSentence.replace('\n', '').length;
+					} else {
+						index += matchString.replace('\n', '').length;
+					}
 				} else {
 					index += matchString.replace('\n', '').length;
 				}
