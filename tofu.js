@@ -2735,7 +2735,7 @@
 					}
 				},
 				enumerable: true,
-				configurabe: true
+				configurable: true
 			};
 			Object.defineProperty(proto, name, define);
 			proto.__props__[name] = define;
