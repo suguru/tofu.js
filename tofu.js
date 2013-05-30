@@ -657,6 +657,14 @@
 			var r2t = rect2[1];
 			var r2r = r2l + rect2[2];
 			var r2b = r2t + rect2[3];
+			// not intersected if width/height is zero
+			if (rect1[2] === 0 || rect2[3] === 0) {
+				return null;
+			}
+			// not intersected if width/height is zero
+			if (rect2[2] === 0 || rect2[3] === 0) {
+				return null;
+			}
 			if (
 				r2l >= r1r ||
 				r2r <= r1l ||
@@ -1274,7 +1282,7 @@
 
 						for (i = 0; i < length; i++) {
 							var redraw = redraws[i];
-							if (redraw !== null) {
+							if (redraw !== null && redraw[2] > 0 && redraw[3] > 0) {
 								clearRect.apply(context, redraw);
 							}
 						}
