@@ -18,7 +18,7 @@
 	var pixelRatio = window.devicePixelRatio || 1;
 	var htmlRatio = pixelRatio;
 
-	var supportTouch = 'ontouchstart' in document.documentElement;
+	var supportTouch = 'ontouchstart' in window; //iOS & android
 
 	var HTML_MODE = false;
 	var CANVAS_MODE = true;
