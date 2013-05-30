@@ -3413,6 +3413,9 @@
 			for (var oid in playings) {
 				var playing = playings[oid];
 
+				if (playing.destroyed) {
+					continue;
+				}
 				if (playing.end) {
 					// end marked animation
 					playing.emitter.emit('complete');
