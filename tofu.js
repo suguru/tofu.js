@@ -4992,6 +4992,7 @@
 		SpriteSheet: SpriteSheet,
 		Sprite: Sprite,
 		MotionPlayer: MotionPlayer,
+		TweenPlayer: TweenPlayer,
 
 		// enable html mode
 		htmlMode: htmlMode
