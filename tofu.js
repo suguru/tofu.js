@@ -2896,7 +2896,7 @@
 
 						function getJson(callback) {
 							// try to load from JSON if security error caused
-							var jsonUrl = img.src.replace(/\.png$/, '.json');
+							var jsonUrl = img.src.replace(/.png($|\?.*$)/, '.json$1')
 							var http = new XMLHttpRequest();
 							http.onreadystatechange = function() {
 								if (http.readyState === 4) {
