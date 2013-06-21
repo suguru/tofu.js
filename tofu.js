@@ -213,6 +213,14 @@
 				return;
 			}
 		}
+		if (alen === 10) {
+			if (x + width > image.width) {
+				width = image.width - x;
+			}
+			if (y + height > image.height) {
+				height = image.height - y;
+			}
+		}
 		dx = floor(dx);
 		dy = floor(dy);
 		dwidth = floor(dwidth);
@@ -627,6 +635,33 @@
 				ceil(right-left),
 				ceil(bottom-top)
 			];
+		},
+		resolve: function(matrix) {
+			var a = matrix[0];
+			var b = matrix[1];
+			var c = matrix[2];
+			var d = matrix[3];
+			var tx = matrix[4];
+			var ty = matrix[5];
+			var scaleX = Math.sqrt((a*a)+(c*c));
+			var scaleY = Math.sqrt((b*b)+(d*d));
+			var sign = Math.atan(-c / a);
+			var rad = Math.acos(a / scaleX);
+			var angle = 0;
+
+			if ((rad > PI_HALF && sign > 0) || (rad < PI_HALF && sign < 0)) {
+				angle = (PI_DOUBLE - rad);
+			} else {
+				angle = rad;
+			}
+
+			return {
+				angle: angle,
+				scaleX: scaleX,
+				scaleY: scaleY,
+				x: tx,
+				y: ty
+			};
 		}
 	};
 
@@ -2038,35 +2073,6 @@
 				props.scaleY = sy === undefined ? sx : sy;
 				return self;
 			},
-			// calculate rotate, translate, scale by matrix
-			calculateByMatrix: function(matrix) {
-				var self = this;
-				var props = self.props;
-				var a = matrix[0];
-				var b = matrix[1];
-				var c = matrix[2];
-				var d = matrix[3];
-				var tx = matrix[4];
-				var ty = matrix[5];
-				var scaleX = Math.sqrt((a*a)+(c*c));
-				var scaleY = Math.sqrt((b*b)+(d*d));
-				var sign = Math.atan(-c / a);
-				var rad = Math.acos(a / scaleX);
-				var angle = 0;
-
-				if ((rad > PI_HALF && sign > 0) || (rad < PI_HALF && sign < 0)) {
-					angle = (PI_DOUBLE - rad);
-				} else {
-					angle = rad;
-				}
-
-				props.angle = angle;
-				props.scaleX = scaleX;
-				props.scaleY = scaleY;
-				props.x = tx;
-				props.y = ty;
-
-			},
 			// get stage of this object
 			stage: function() {
 				var self = this;
@@ -3153,8 +3159,8 @@
 					// return direct object if object has only 1 instance
 					if (part) {
 						self._lengthOne = true;
-						self.baseX = round(part.base.x / pixelRatio);
-						self.baseY = round(part.base.y / pixelRatio);
+						self.baseX = part.base.x / pixelRatio;
+						self.baseY = part.base.y / pixelRatio;
 						self.width = part.width;
 						self.height = part.height;
 						self.initImage({
@@ -3214,16 +3220,16 @@
 				if (canvas) {
 					canvas.width = width;
 					canvas.height = height;
-					self.width = round(width / pixelRatio);
-					self.height = round(height / pixelRatio);
+					self.width = ceil(width / pixelRatio);
+					self.height = ceil(height / pixelRatio);
 				} else {
 					context = createContext(width, height);
 					canvas = context.canvas;
 					self.initContext(context);
 				}
 
-				self.baseX = round(-xmin / pixelRatio);
-				self.baseY = round(-ymin / pixelRatio);
+				self.baseX = -xmin / pixelRatio;
+				self.baseY = -ymin / pixelRatio;
 
 				// combine sheets
 				for (i = 0; i < sheets.length; i++) {
@@ -3385,6 +3391,7 @@
 		init: function() {
 			var self = this;
 			self.motions = {};
+			self.infos = {};
 			self.playings = {};
 			return self;
 		},
@@ -3394,19 +3401,25 @@
 		// register new motion data
 		register: function(name, data) {
 			var self = this;
+			var info = self.infos[name] = {};
 			for (var oname in data) {
 				var parts = data[oname];
+				var props = info[oname] = {};
 				for (var partname in parts) {
 					// skip flags
 					if (partname === 'flags') {
 						continue;
 					}
 					var partdata = parts[partname];
+					var proplist = props[partname] = [];
 					for (var i = 0; i < partdata.length; i++) {
 						var partmatrix = partdata[i];
 						if (partmatrix) {
+							proplist.push(Matrix.resolve(partmatrix));
 							partmatrix[4] *= htmlRatio;
 							partmatrix[5] *= htmlRatio;
+						} else {
+							proplist.push(null);
 						}
 					}
 				}
@@ -3426,13 +3439,18 @@
 				console.error('motion',name,'is not registered');
 				return;
 			}
+			var infos = self.infos[name];
 			var emitter = init(EventEmitter);
 			var playings = self.playings;
 			for (var tname in target) {
 				// target object
 				var mtarget = target[tname];
+				if (!mtarget) {
+					continue;
+				}
 				// get motion data
 				var mdata = data[tname];
+				var info = infos[tname];
 				var totalFrame = 0;
 				for (var pname in mdata) {
 					totalFrame = mdata[pname].length;
@@ -3443,6 +3461,7 @@
 						target: mtarget,
 						repeat: repeat,
 						data: mdata,
+						info: info,
 						totalFrame: totalFrame,
 						emitter: emitter,
 						frame: 0
@@ -3476,20 +3495,40 @@
 				var totalFrame = playing.totalFrame;
 				var target = playing.target;
 				var data = playing.data;
+				var info = playing.info;
+
 				for (var name in data) {
 					var object = target[name];
 					var array = data[name];
+					var props = info[name];
 					if (object && array) {
 						var matrix = array[frame];
+						var prop = props[frame];
 						//array
 						if (isArray(object)) {
 							for(i = 0; i < object.length; i++){
 								var o = object[i];
+								var op = o.props;
 								o.specifiedMatrix = matrix;
+								if (prop) {
+									op.x = prop.x;
+									op.y = prop.y;
+									op.scaleX = prop.scaleX;
+									op.scaleY = prop.scaleY;
+									op.angle = prop.angle;
+								}
 								o.update();
 							}
 						} else {
 							object.specifiedMatrix = matrix;
+							var oprop = object.props;
+							if (prop) {
+								oprop.x = prop.x;
+								oprop.y = prop.y;
+								oprop.scaleX = prop.scaleX;
+								oprop.scaleY = prop.scaleY;
+								oprop.angle = prop.angle;
+							}
 							object.update();
 						}
 					} else if (name === 'flags') {
@@ -5039,6 +5078,7 @@
 		Sprite: Sprite,
 		MotionPlayer: MotionPlayer,
 		TweenPlayer: TweenPlayer,
+		Matrix: Matrix,
 
 		// enable html mode
 		htmlMode: htmlMode
