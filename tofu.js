@@ -164,6 +164,9 @@
 
 	// draw image to target context
 	function drawImage(context) {
+		if (!context) {
+			return;
+		}
 		var args = fixArgs(arguments, 1);
 		for (var i = 1; i < args.length; i++) {
 			var arg = args[i];
@@ -181,6 +184,12 @@
 
 	// draw image to target context without pixel ratio calculation
 	function drawImageDirect(context, image, x, y, width, height, dx, dy, dwidth, dheight) {
+		if (!context || !image) {
+			return;
+		}
+		if (width <= 0 || height <= 0 || dwidth <= 0 || dheight <= 0) {
+			return;
+		}
 		var alen = arguments.length;
 		if (alen >= 4) {
 			x = floor(x);
@@ -2483,9 +2492,11 @@
 	 */
 	var Graphics = extend(Sprite, function Graphics() {}, function() {
 		var proto = {
+			graphics: dummyContext,
 			init: function(options) {
 				options = options || {};
 				var self = this;
+				self.context = dummyContext;
 				var width = self.width = options.width || 1;
 				var height = self.height = options.height || 1;
 				self.initCanvas(width, height);
@@ -2550,6 +2561,9 @@
 			measure: function(text, font) {
 				var self = this;
 				var graphics = self.graphics;
+				if (!graphics) {
+					return;
+				}
 				if (font) {
 					graphics.save();
 					graphics.font = font;
@@ -2576,6 +2590,9 @@
 				canvas.width = width;
 				canvas.height = height;
 				var context = self.graphics;
+				if (!context) {
+					return;
+				}
 				context.scale(pixelRatio, pixelRatio);
 			},
 			clear: function() {
@@ -2584,6 +2601,9 @@
 					var canvas = self.source;
 					canvas.width = canvas.width;
 					var context = self.graphics;
+					if (!context) {
+						return;
+					}
 					context.scale(pixelRatio, pixelRatio);
 					self.update();
 				}
@@ -2601,6 +2621,9 @@
 				var y2 = y1 + height;
 
 				var graphics = self.graphics;
+				if (!graphics) {
+					return;
+				}
 				graphics.beginPath();
 				graphics.moveTo(x1 + elt, y1);
 				if (ert !== 0) {
@@ -2655,6 +2678,9 @@
 					return;
 				}
 				var graphics = self.graphics;
+				if (!graphics) {
+					return;
+				}
 				graphics.save();
 				graphics.setTransform(1,0,0,1,floor(x * pixelRatio),floor(y * pixelRatio));
 				graphics.fillStyle = graphics.createPattern(image, repeat);
@@ -2665,6 +2691,9 @@
 				var stops = fixArgs(arguments).slice(4);
 				var self = this;
 				var graphics = self.graphics;
+				if (!graphics) {
+					return;
+				}
 				var grad = graphics.createLinearGradient(x0,y0,x1,y1);
 				for (var i = 0; i < stops.length; i++) {
 					var stop = stops[i];
@@ -2683,6 +2712,9 @@
 					args[2] = 0;
 				}
 				var graphics = self.graphics;
+				if (!graphics) {
+					return;
+				}
 				var emitter = init(EventEmitter);
 				// push context to args
 				args.unshift(graphics);
@@ -2702,8 +2734,11 @@
 							drawImage.apply(self, args);
 							// mark as redraw
 							self.update(true);
-							// save resource as cache for next draw
-							self.resources[image] = img;
+							// 'self.resources' is possibly null if 'self' is under destroying
+							if (self.resources) {
+								// save resource as cache for next draw
+								self.resources[image] = img;
+							}
 							// emit load
 							emitter.emit('load');
 						};
@@ -2717,12 +2752,16 @@
 				return emitter;
 			},
 			drawText: function(options) {
+				if (!this.graphics) {
+					return;
+				}
 				options.context = this.graphics;
 				drawText(options);
 			}
 		};
 
 		proto.__props__ = {};
+		var dummyContext = {};
 		// canvas context property proxy
 		[
 			'strokeStyle','fillStyle','lineWidth','lineCap','lineJoin','miterLimit',
@@ -2762,14 +2801,21 @@
 			proto[name] = function() {
 				var self = this;
 				var graphics = self.graphics;
-				return graphics[name].apply(graphics, arguments);
+				if (graphics) {
+					return graphics[name].apply(graphics, arguments);
+				}
+				return null;
 			};
+			dummyContext[name] = function() {};
 		});
 
 		// clearRect should be optimized
 		proto.clearRect = function() {
 			var self = this;
 			var graphics = self.graphics;
+			if (!graphics) {
+				return;
+			}
 			if (clearRect.apply(graphics, arguments)) {
 				graphics.scale(pixelRatio, pixelRatio);
 			}
